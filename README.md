@@ -16,9 +16,15 @@ Download **Lunaria.exe** from [GitHub Releases](https://github.com/nekoium/Lunar
 
 Desktop icons work normally outside edit mode. During editing, the board receives desktop clicks. Ordinary application windows and the taskbar remain above the board. Calling the editor gives it keyboard focus; during an active file drag it waits until the drop completes.
 
+## Board storage
+
+Lunaria automatically saves the board in `%LOCALAPPDATA%\Lunaria\board.json` after adding or deleting images and after completing a move, resize, or rotation. Imported images are copied into the adjacent `images` folder, so moving or deleting an original does not change the board. These copies use additional disk space; deleting an image from the board removes its copy after a successful save.
+
+Board order, positions, sizes, and rotations are restored on launch. Saves replace the JSON atomically. If a save fails, Lunaria reports the error and keeps the current session in memory; the previous saved board remains intact. An unreadable board or a missing/damaged stored image prevents startup rather than silently replacing saved data. Keep the JSON and image folder together when backing up the board.
+
 ## Current limits
 
-This prototype supports Windows and the primary monitor only. It does not save the board between launches. It has no settings, automatic startup, or configurable shortcuts. Images larger than 40 megapixels are rejected.
+This prototype supports Windows and the primary monitor only. It has no settings, automatic startup, or configurable shortcuts. Images larger than 40 megapixels are rejected.
 
 Images stay local. Lunaria does not upload them or connect to a service. Large AVIF images can take several seconds to import and use substantial temporary memory.
 

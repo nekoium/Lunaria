@@ -20,6 +20,7 @@ type application struct {
 	display, editor                    uintptr
 	width, height                      int
 	images                             []*boardImage
+	storage                            string
 	selected                           int
 	editing, changing, dialog          bool
 	drag                               string
@@ -91,6 +92,9 @@ func run() error {
 	}
 	app.width = metric(0)
 	app.height = metric(1)
+	if err := app.openStorage(); err != nil {
+		return err
+	}
 	app.host, _, err = createWindowEx.Call(wsExToolWindow, uintptr(unsafe.Pointer(wc.ClassName)), uintptr(unsafe.Pointer(u16("Lunaria"))), wsPopup, 0, 0, 0, 0, 0, 0, instance, 0)
 	if app.host == 0 {
 		return apiError("create tray host", err)
@@ -256,7 +260,7 @@ func (a *application) redraw() {
 }
 
 func (a *application) addFile(path string) {
-	item, err := loadImage(path)
+	item, err := a.importImage(path)
 	if err != nil {
 		a.dialog = true
 		notifyError(fmt.Sprintf("Cannot add %s:\n%v", path, err))
@@ -270,6 +274,7 @@ func (a *application) addFile(path string) {
 	item.Y = float64(a.height)/2 + float64(len(a.images)%5)*24
 	a.images = append(a.images, item)
 	a.selected = len(a.images) - 1
+	a.persistBoard()
 	a.setEdit(true)
 	a.redraw()
 }
@@ -385,7 +390,14 @@ func (a *application) mouseMove(p vector) {
 	}
 	a.redraw()
 }
-func (a *application) stopDrag() { a.drag = ""; releaseCapture.Call() }
+func (a *application) stopDrag() {
+	changed := a.drag != ""
+	a.drag = ""
+	releaseCapture.Call()
+	if changed {
+		a.persistBoard()
+	}
+}
 
 func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 	a := app
@@ -431,9 +443,13 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			}
 			if wparam == 0x2e && a.selected >= 0 {
 				a.stopDrag()
-				call("GdipDisposeImage", a.images[a.selected].Bitmap)
+				removed := a.images[a.selected]
+				call("GdipDisposeImage", removed.Bitmap)
 				a.images = append(a.images[:a.selected], a.images[a.selected+1:]...)
 				a.selected = -1
+				if a.persistBoard() && a.storage != "" {
+					os.Remove(filepath.Join(a.storage, "images", removed.File))
+				}
 				a.redraw()
 			}
 		}
@@ -452,7 +468,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		a.stopDrag()
 		return 0
 	case wmCaptureChanged:
-		a.drag = ""
+		a.stopDrag()
 		return 0
 	case wmDropFiles:
 		var drop point
@@ -470,6 +486,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			}
 		}
 		dragFinish.Call(wparam)
+		a.persistBoard()
 		a.redraw()
 		if !a.smoke {
 			setForegroundWindow.Call(a.editor)
@@ -507,6 +524,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			return 0
 		}
 		if hwnd == a.host {
+			a.stopDrag()
 			user32.NewProc("PostQuitMessage").Call(0)
 			return 0
 		}

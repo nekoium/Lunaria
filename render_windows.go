@@ -22,6 +22,7 @@ import (
 )
 
 type boardImage struct {
+	File              string
 	X, Y, W, H, Angle float64
 	Bitmap            uintptr
 	Pixels            []byte

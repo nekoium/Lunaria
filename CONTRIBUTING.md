@@ -17,7 +17,9 @@ Start-Process .\Lunaria.exe -ArgumentList '--smoke-test', 'testdata/sample.png' 
 Get-Content .\smoke-result.json
 ```
 
-These checks exercise window styles, geometry, edit operations, synthetic Shell drop payloads, and surface recreation. Smoke mode does not request keyboard focus. They are not proof of usable desktop behavior.
+These checks exercise window styles, geometry, edit operations, synthetic Shell drop payloads, and surface recreation. Smoke mode does not request keyboard focus and does not read or write the user's saved board. They are not proof of usable desktop behavior.
+
+Board persistence tests use isolated temporary storage and cover restart restoration, source removal, deletion, completed drags, invalid metadata, failed atomic replacement, and smoke isolation. For manual restart testing, add images, move/resize/rotate them, quit through the tray, and relaunch; confirm image order and transforms persist even after moving the original files. Do not delete or edit the user's existing `%LOCALAPPDATA%\Lunaria` folder for testing.
 
 The checked-in `lunaria_windows_amd64.syso` embeds the Windows compatibility manifest needed for layered child windows. After editing `lunaria.manifest`, regenerate it with `go generate ./...`. This downloads the pinned resource compiler as a build tool, not an application dependency.
 

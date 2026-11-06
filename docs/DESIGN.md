@@ -43,6 +43,12 @@ Leaving edit mode returns the board to click-through display and removes the edi
 
 Add images through drag-and-drop or **Add Image…** in the tray menu. There is no separate import workflow.
 
+## Board persistence
+
+The board survives application restarts. Board information is stored in a JSON file under the user's local application data folder. Imported images are copied locally so the board does not depend on the originals remaining available.
+
+Adding or deleting an image and completing a move, resize, or rotation automatically saves the board. Saved order and geometry are restored on launch. Failed saves must be reported without replacing the previous saved board; unreadable saved data must not be silently discarded.
+
 ## Safety
 
 - Closing or crashing must leave the wallpaper, icons, taskbar, and keyboard state unchanged.
@@ -57,5 +63,4 @@ Add images through drag-and-drop or **Add Image…** in the tray menu. There is 
 - Configurable shortcuts and hold-to-edit mode.
 - Image context menus, including copy, save as, and reset aspect ratio.
 - Settings window, launch at login, open data folder, and version display.
-- Persistence, local image copies, autosave, and saving on exit.
 - Text notes, multiple boards, multiple monitors, and cloud sync.
