@@ -212,7 +212,6 @@ func (a *application) setEdit(edit bool) {
 	a.stopDrag()
 	a.changing = true
 	defer func() { a.changing = false }()
-	showWindow.Call(a.board, swHide)
 	a.editing = edit
 	if edit {
 		valid, _, _ := user32.NewProc("IsWindow").Call(a.editor)
@@ -231,9 +230,12 @@ func (a *application) setEdit(edit bool) {
 		setWindowPos.Call(a.board, 0, 0, 0, uintptr(a.width), uintptr(a.height), swpNoActivate|swpFrameChanged)
 		if err := a.render(); err != nil {
 			a.failRender(err)
+			a.board = a.display
 			return
 		}
 		a.activateEditor()
+		// Keep the outgoing surface visible until its replacement is ready.
+		showWindow.Call(a.display, swHide)
 	} else {
 		a.board = a.display
 		a.selected = -1
@@ -241,6 +243,7 @@ func (a *application) setEdit(edit bool) {
 		if err := a.attach(); err != nil {
 			showWindow.Call(a.board, swHide)
 		}
+		showWindow.Call(a.editor, swHide)
 		a.changing = true
 	}
 }
@@ -547,6 +550,9 @@ func (a *application) smokeTick() {
 		check(a.editing && parent == 0, "editor is a top-level window")
 		check(ex&wsExTransparent == 0, "editor accepts input")
 		check(ex&0x10 != 0, "editor retains Shell file-drop registration")
+		visible, _, _ := user32.NewProc("IsWindowVisible").Call(a.editor)
+		passiveVisible, _, _ := user32.NewProc("IsWindowVisible").Call(a.display)
+		check(visible != 0 && passiveVisible == 0, "entering edit mode shows editor and hides passive surface")
 		if len(a.images) > 0 {
 			a.selected = 0
 			item := a.images[0]
@@ -578,6 +584,9 @@ func (a *application) smokeTick() {
 	case 3:
 		parent, _, _ := getParent.Call(a.board)
 		check(!a.editing && parent == a.desktop && parent != 0, "exit restores passive desktop surface")
+		visible, _, _ := user32.NewProc("IsWindowVisible").Call(a.display)
+		editorVisible, _, _ := user32.NewProc("IsWindowVisible").Call(a.editor)
+		check(visible != 0 && editorVisible == 0, "exiting edit mode shows passive surface and hides editor")
 		// Exercise the real Shell drag/drop payload API without moving the user's pointer.
 		path, err := filepath.Abs("testdata/sample.png")
 		check(err == nil, "resolve drop fixture")
