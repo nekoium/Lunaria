@@ -15,14 +15,30 @@ const (
 )
 
 func (a *application) paste() {
-	if err := a.pasteClipboard(); err != nil {
+	position := a.pastePosition()
+	if err := a.pasteClipboard(position); err != nil {
 		a.dialog = true
 		notifyError(fmt.Sprintf("Cannot paste image:\n%v", err))
 		a.dialog = false
 	}
 }
 
-func (a *application) pasteClipboard() error {
+func (a *application) pastePosition() *vector {
+	var p point
+	if ok, _, _ := getCursorPos.Call(uintptr(unsafe.Pointer(&p))); ok == 0 {
+		return nil
+	}
+	return a.boardPosition(p)
+}
+
+func (a *application) boardPosition(p point) *vector {
+	if ok, _, _ := user32.NewProc("ScreenToClient").Call(a.board, uintptr(unsafe.Pointer(&p))); ok == 0 {
+		return nil
+	}
+	return &vector{float64(p.X), float64(p.Y)}
+}
+
+func (a *application) pasteClipboard(position *vector) error {
 	ok, _, err := user32.NewProc("OpenClipboard").Call(a.editor)
 	if ok == 0 {
 		return apiError("OpenClipboard", err)
@@ -31,10 +47,16 @@ func (a *application) pasteClipboard() error {
 	get := user32.NewProc("GetClipboardData")
 	if drop, _, _ := get.Call(cfHDrop); drop != 0 {
 		count, _, _ := dragQueryFile.Call(drop, 0xffffffff, 0, 0)
+		before := len(a.images)
 		for i := uintptr(0); i < count; i++ {
 			var path [32768]uint16
 			dragQueryFile.Call(drop, i, uintptr(unsafe.Pointer(&path[0])), uintptr(len(path)))
-			a.addFile(syscall.UTF16ToString(path[:]))
+			var target *vector
+			if position != nil {
+				offset := float64(len(a.images)-before) * 24
+				target = &vector{position.x + offset, position.y + offset}
+			}
+			a.addFileAt(syscall.UTF16ToString(path[:]), target)
 		}
 		// Clipboard handles belong to Windows; do not call DragFinish here.
 		return nil
@@ -56,7 +78,7 @@ func (a *application) pasteClipboard() error {
 			if err != nil {
 				return err
 			}
-			a.addImage(item)
+			a.addImage(item, position)
 			return nil
 		}
 	}
@@ -80,6 +102,6 @@ func (a *application) pasteClipboard() error {
 	if status := call("GdipCreateBitmapFromHBITMAP", bitmap, 0, uintptr(unsafe.Pointer(&item.Bitmap))); status != 0 {
 		return fmt.Errorf("create clipboard image: %d", status)
 	}
-	a.addImage(item)
+	a.addImage(item, position)
 	return nil
 }
