@@ -263,6 +263,10 @@ func (a *application) addFile(path string) {
 		a.dialog = false
 		return
 	}
+	a.addImage(item)
+}
+
+func (a *application) addImage(item *boardImage) {
 	scale := math.Min(1, math.Min(float64(a.width)*0.55/item.W, float64(a.height)*0.55/item.H))
 	item.W *= scale
 	item.H *= scale
@@ -426,6 +430,9 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 	case wmKeyDown:
 		if hwnd == a.board && a.editing {
 			ctrl, _, _ := getAsyncKeyState.Call(0x11)
+			if wparam == 'V' && ctrl&0x8000 != 0 {
+				a.paste()
+			}
 			if wparam == 0x1b || (wparam == 9 && ctrl&0x8000 != 0) {
 				a.setEdit(false)
 			}
