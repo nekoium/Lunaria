@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
@@ -13,6 +14,11 @@ import (
 	"runtime"
 	"syscall"
 	"unsafe"
+
+	_ "github.com/gen2brain/avif"
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp"
 )
 
 type boardImage struct {
@@ -77,21 +83,22 @@ func loadImage(path string) (*boardImage, error) {
 	if _, err = file.Seek(0, 0); err != nil {
 		return nil, err
 	}
-	decoded, _, err := image.Decode(file)
+	decoded, format, err := image.Decode(file)
+	if err != nil && format == "webp" {
+		if _, err = file.Seek(0, 0); err != nil {
+			return nil, err
+		}
+		decoded, err = decodeWebPFirstFrame(file, cfg)
+	}
 	if err != nil {
 		return nil, err
 	}
 	pixels := make([]byte, cfg.Width*cfg.Height*4)
 	bounds := decoded.Bounds()
-	for y := 0; y < cfg.Height; y++ {
-		for x := 0; x < cfg.Width; x++ {
-			r, g, b, a := decoded.At(bounds.Min.X+x, bounds.Min.Y+y).RGBA()
-			i := (y*cfg.Width + x) * 4
-			pixels[i] = byte(b >> 8)
-			pixels[i+1] = byte(g >> 8)
-			pixels[i+2] = byte(r >> 8)
-			pixels[i+3] = byte(a >> 8)
-		}
+	rgba := &image.RGBA{Pix: pixels, Stride: cfg.Width * 4, Rect: image.Rect(0, 0, cfg.Width, cfg.Height)}
+	draw.Draw(rgba, rgba.Bounds(), decoded, bounds.Min, draw.Src)
+	for i := 0; i < len(pixels); i += 4 {
+		pixels[i], pixels[i+2] = pixels[i+2], pixels[i]
 	}
 	item := &boardImage{Pixels: pixels, W: float64(cfg.Width), H: float64(cfg.Height)}
 	// Scan0 retains this buffer; each item's Pixels field keeps it alive until bitmap disposal.

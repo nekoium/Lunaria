@@ -1,12 +1,14 @@
 # Contributing
 
-Build on Windows with Go 1.25 or later. The prototype uses Go's standard library and Windows system DLLs, with no third-party Go dependencies.
+Build on Windows with Go 1.25 or later. The prototype uses Windows system DLLs for its interface and rendering. BMP, TIFF, and WebP decoding use `golang.org/x/image`. AVIF decoding uses a bundled decoder through a Go WebAssembly runtime; users do not need to install an image codec.
 
 ```powershell
 go test ./...
 go vet ./...
 go build -ldflags "-H windowsgui -s -w" -o Lunaria.exe .
 ```
+
+Include `THIRD_PARTY_NOTICES.txt` with binary distributions. Animated WebP import extracts and composites the first frame using the existing WebP decoder; it does not decode the remaining frames.
 
 For native API smoke checks, quit any running instance and run from this folder:
 

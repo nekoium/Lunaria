@@ -7,7 +7,7 @@ A native Windows vision board. Keep images visible on your desktop, then switch 
 Download **Lunaria.exe** from [GitHub Releases](https://github.com/nekoium/Lunaria/releases), then open it. Lunaria stays in the notification area; Windows may place its icon in the overflow menu. No additional application runtime is required.
 
 - Press **Ctrl+Alt+L**, or click the notification-area icon, to toggle edit mode.
-- Right-click the icon and choose **Add Image…** to select an image. PNG, JPEG, and GIF are supported; GIF displays its first frame.
+- Right-click the icon and choose **Add Image…** to select an image. PNG, JPEG, GIF, WebP, AVIF, BMP, and TIFF are supported; animated or multipage images display their first frame or page. Lunaria detects the format from the file contents, including AVIF images downloaded with a `.jpg` name.
 - In edit mode, you can also drop image files onto the board.
 - Click an image to select it. Drag its body to move it, a corner to resize it, or the handle extending from its top edge to rotate it. Rotation snaps near quarter turns.
 - Press **Delete** to remove the selected image.
@@ -20,7 +20,7 @@ Desktop icons work normally outside edit mode. During editing, the board receive
 
 This prototype supports Windows and the primary monitor only. It does not save the board between launches. It has no settings, automatic startup, or configurable shortcuts. Images larger than 40 megapixels are rejected.
 
-Images stay local. Lunaria does not upload them or connect to a service.
+Images stay local. Lunaria does not upload them or connect to a service. Large AVIF images can take several seconds to import and use substantial temporary memory.
 
 Passive images are placed below desktop icons and pass clicks through. On newer Windows desktop layouts, partially transparent image areas can appear darker in normal mode, and exact #010203 pixels are treated as transparent. Edit mode preserves per-pixel transparency. Desktop attachment depends on Explorer; if no suitable desktop host is available, the board stays hidden rather than moving above icons. Ctrl+Alt+L must be available; Lunaria reports a conflict if another application has registered it.
 
@@ -34,4 +34,4 @@ go build -ldflags "-H windowsgui -s -w" -o Lunaria.exe .
 
 ## License
 
-Lunaria is available under the [MIT License](LICENSE).
+Lunaria is available under the [MIT License](LICENSE). Bundled decoder and dependency licenses are included in [third-party notices](THIRD_PARTY_NOTICES.txt).
