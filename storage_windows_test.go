@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -12,6 +13,12 @@ import (
 	"syscall"
 	"testing"
 )
+
+type interruptedImageReader struct{ *bytes.Reader }
+
+func (r interruptedImageReader) Read([]byte) (int, error) {
+	return 0, fmt.Errorf("simulated interrupted clipboard write")
+}
 
 func TestBoardStorage(t *testing.T) {
 	runtime.LockOSThread()
@@ -154,6 +161,27 @@ func TestBoardStorage(t *testing.T) {
 		b := &application{storage: a.storage}
 		if err := b.loadBoard(); err != nil || len(b.images) != 0 {
 			t.Fatalf("invalid geometry replaced saved board: %v", err)
+		}
+	})
+	t.Run("clipboard storage errors leave no partial images", func(t *testing.T) {
+		a := &application{storage: t.TempDir()}
+		if _, err := a.importReader(interruptedImageReader{bytes.NewReader(nil)}); err == nil {
+			t.Fatal("accepted interrupted source")
+		}
+		if _, err := a.importReader(bytes.NewReader([]byte("bad PNG"))); err == nil {
+			t.Fatal("accepted invalid clipboard PNG")
+		}
+		files, err := os.ReadDir(filepath.Join(a.storage, "images"))
+		if err != nil || len(files) != 0 {
+			t.Fatalf("partial image leaked: %v", err)
+		}
+		blocked := filepath.Join(a.storage, "blocked")
+		if err := os.WriteFile(blocked, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		a.storage = blocked
+		if _, err := a.importReader(bytes.NewReader(nil)); err == nil {
+			t.Fatal("ignored storage directory failure")
 		}
 	})
 	t.Run("invalid imports remove their copy", func(t *testing.T) {

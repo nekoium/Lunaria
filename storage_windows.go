@@ -101,6 +101,13 @@ func (a *application) importImage(path string) (*boardImage, error) {
 		return nil, err
 	}
 	defer source.Close()
+	return a.importReader(source)
+}
+
+func (a *application) importReader(source io.ReadSeeker) (*boardImage, error) {
+	if a.storage == "" {
+		return readImage(source)
+	}
 	dir := filepath.Join(a.storage, "images")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
