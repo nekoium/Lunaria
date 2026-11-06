@@ -259,6 +259,10 @@ func (a *application) redraw() {
 }
 
 func (a *application) addFile(path string) {
+	a.addFileAt(path, nil)
+}
+
+func (a *application) addFileAt(path string, position *vector) {
 	item, err := loadImage(path)
 	if err != nil {
 		a.dialog = true
@@ -266,11 +270,18 @@ func (a *application) addFile(path string) {
 		a.dialog = false
 		return
 	}
+	a.addImage(item, position)
+}
+
+func (a *application) addImage(item *boardImage, position *vector) {
 	scale := math.Min(1, math.Min(float64(a.width)*0.55/item.W, float64(a.height)*0.55/item.H))
 	item.W *= scale
 	item.H *= scale
 	item.X = float64(a.width)/2 + float64(len(a.images)%5)*24
 	item.Y = float64(a.height)/2 + float64(len(a.images)%5)*24
+	if position != nil {
+		item.X, item.Y = position.x, position.y
+	}
 	a.images = append(a.images, item)
 	a.selected = len(a.images) - 1
 	a.setEdit(true)
@@ -429,6 +440,9 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 	case wmKeyDown:
 		if hwnd == a.board && a.editing {
 			ctrl, _, _ := getAsyncKeyState.Call(0x11)
+			if wparam == 'V' && ctrl&0x8000 != 0 {
+				a.paste()
+			}
 			if wparam == 0x1b || (wparam == 9 && ctrl&0x8000 != 0) {
 				a.setEdit(false)
 			}

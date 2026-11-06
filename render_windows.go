@@ -9,6 +9,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"math"
 	"os"
 	"runtime"
@@ -73,6 +74,10 @@ func loadImage(path string) (*boardImage, error) {
 		return nil, err
 	}
 	defer file.Close()
+	return readImage(file)
+}
+
+func readImage(file io.ReadSeeker) (*boardImage, error) {
 	cfg, _, err := image.DecodeConfig(file)
 	if err != nil {
 		return nil, err
@@ -203,7 +208,7 @@ func drawHint(graphics uintptr, width int) {
 	call("GdipDeleteBrush", brush)
 	call("GdipCreateSolidFill", 0xfff5f6ff, uintptr(unsafe.Pointer(&brush)))
 	area := rectF{float32(40 * uiScale), float32(33 * uiScale), float32(w - 28*uiScale), float32(54 * uiScale)}
-	text := "Lunaria · Edit mode · Ctrl+Alt+L to finish\nDrop images here · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
+	text := "Lunaria · Edit mode · Ctrl+Alt+L to finish\nDrop or Ctrl+V to paste images · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
 	call("GdipDrawString", graphics, uintptr(unsafe.Pointer(u16(text))), ^uintptr(0), font, uintptr(unsafe.Pointer(&area)), 0, brush)
 	call("GdipDeleteBrush", brush)
 }
