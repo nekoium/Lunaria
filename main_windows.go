@@ -297,7 +297,7 @@ func (a *application) chooseFile() {
 	a.dialog = true
 	defer func() { a.dialog = false }()
 	var filename [32768]uint16
-	filter := utf16.Encode([]rune("Images (*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.tif;*.tiff)\x00*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.tif;*.tiff\x00All files\x00*.*\x00\x00"))
+	filter := utf16.Encode([]rune("Images (*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.heic;*.heif;*.bmp;*.tif;*.tiff)\x00*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.heic;*.heif;*.bmp;*.tif;*.tiff\x00All files\x00*.*\x00\x00"))
 	ofn := openFileName{Owner: a.host, Filter: &filter[0], File: &filename[0], MaxFile: uint32(len(filename)), Title: u16("Add image to Lunaria"), Flags: 0x80000 | 0x1000 | 0x800 | 8}
 	ofn.Size = uint32(unsafe.Sizeof(ofn))
 	if r, _, _ := getOpenFileName.Call(uintptr(unsafe.Pointer(&ofn))); r != 0 {

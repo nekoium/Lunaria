@@ -1,12 +1,14 @@
 # Contributing
 
-Build on Windows with Go 1.25 or later. The prototype uses Windows system DLLs for its interface and rendering. BMP, TIFF, and WebP decoding use `golang.org/x/image`. AVIF decoding uses a bundled decoder through a Go WebAssembly runtime; users do not need to install an image codec.
+Build on Windows with Go 1.26.4 or later. The prototype uses Windows system DLLs for its interface and rendering. BMP, TIFF, and WebP decoding use `golang.org/x/image`. AVIF decoding uses a bundled decoder through a Go WebAssembly runtime; users do not need to install an image codec.
 
 ```powershell
 go test ./...
 go vet ./...
 go build -ldflags "-H windowsgui -s -w" -o Lunaria.exe .
 ```
+
+HEIC/HEIF decoding uses `github.com/gen2brain/h265/heic`, with automatic container transforms, a 40-million-pixel coded-frame limit, and at most four decoding workers. It selects the primary image or first sequence frame. RGB output retains the source color space; no additional ICC conversion or HDR tone mapping is applied. Runtime files do not require Windows HEIF/HEVC extensions.
 
 Include `THIRD_PARTY_NOTICES.txt` with binary distributions. Animated WebP import extracts and composites the first frame using the existing WebP decoder; it does not decode the remaining frames.
 

@@ -17,6 +17,7 @@ import (
 	"unsafe"
 
 	_ "github.com/gen2brain/avif"
+	"github.com/gen2brain/h265/heic"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
@@ -79,7 +80,7 @@ func loadImage(path string) (*boardImage, error) {
 }
 
 func readImage(file io.ReadSeeker) (*boardImage, error) {
-	cfg, _, err := image.DecodeConfig(file)
+	cfg, format, err := image.DecodeConfig(file)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,12 @@ func readImage(file io.ReadSeeker) (*boardImage, error) {
 	if _, err = file.Seek(0, 0); err != nil {
 		return nil, err
 	}
-	decoded, format, err := image.Decode(file)
+	var decoded image.Image
+	if format == "heic" {
+		decoded, err = heic.Decode(file, heic.Options{AutoRotate: true, FrameSizeLimit: 40_000_000, Threads: 4})
+	} else {
+		decoded, format, err = image.Decode(file)
+	}
 	if err != nil && format == "webp" {
 		if _, err = file.Seek(0, 0); err != nil {
 			return nil, err
@@ -99,8 +105,15 @@ func readImage(file io.ReadSeeker) (*boardImage, error) {
 	if err != nil {
 		return nil, err
 	}
-	pixels := make([]byte, cfg.Width*cfg.Height*4)
 	bounds := decoded.Bounds()
+	if format == "heic" {
+		// Container rotation and cropping can change the configured dimensions.
+		cfg.Width, cfg.Height = bounds.Dx(), bounds.Dy()
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > 40_000_000 {
+		return nil, fmt.Errorf("image exceeds the prototype's 40 megapixel limit")
+	}
+	pixels := make([]byte, cfg.Width*cfg.Height*4)
 	rgba := &image.RGBA{Pix: pixels, Stride: cfg.Width * 4, Rect: image.Rect(0, 0, cfg.Width, cfg.Height)}
 	draw.Draw(rgba, rgba.Bounds(), decoded, bounds.Min, draw.Src)
 	for i := 0; i < len(pixels); i += 4 {
