@@ -2,6 +2,12 @@
 
 Historical investigation: the initial unsupported recommendation below was superseded by a measured pure Go experiment and the user's approval on 2026-11-06. HEIC support is now implemented in the review worktree with h265 v0.2.4, four decoding threads, automatic transforms and the 40MP limit; executable-size increase is 607,744 bytes over the same-compiler baseline. The tested 12MP photos took 121–243ms with 128–176MiB peak process working set in the standalone probe. Raw measurements and the review binaries are retained locally under `docs/verification/issue6/`; user-facing findings were reported in chat. No commit or integration approval is implied by this historical document.
 
+## Final integration validation
+
+The user authorized finalization after receiving the review build and instructions for actual use; this is authorization to proceed with the disclosed limits, not evidence of completed photo or UI testing. Integration onto current main preserves board persistence, cursor-position clipboard paste and edit transition fixes. The HEIC decode options now run in the shared `readImage` path used by file imports and reader imports. A regression test verifies that original HEIC bytes are retained in extensionless managed copies and restored in a fresh process after the original disappears, preserving rotated pixel dimensions, premultiplied alpha, source-space color and saved board geometry. Public documentation discloses the lack of ICC conversion and HDR tone mapping.
+
+The sections below retain the original investigation and its then-current evidence gaps as historical context. Their unsupported recommendation and statements that no implementation or measurements exist do not describe the integrated implementation. Final source, executable, check logs and limitations are recorded in the ignored local `docs/verification/issue-6/` artifact directory of the main project checkout.
+
 Investigation date: 2026-11-06. Review gate: **retain unsupported HEIC/HEIF behavior**. No candidate has been validated against the issue's stability, fidelity, and performance requirements. This is a limitation of the available evidence, not a claim that no usable decoder exists.
 
 Issue: https://github.com/nekoium/Lunaria/issues/6 (open; `scope: medium`, `priority: T2`; no comments when checked). No issue decisions, labels, comments, or state were changed.
