@@ -9,6 +9,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"math"
 	"os"
 	"runtime"
@@ -17,12 +18,14 @@ import (
 	"unsafe"
 
 	_ "github.com/gen2brain/avif"
+	"github.com/gen2brain/h265/heic"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 )
 
 type boardImage struct {
+	File              string
 	X, Y, W, H, Angle float64
 	Bitmap            uintptr
 	Pixels            []byte
@@ -91,7 +94,11 @@ func loadImage(path string) (*boardImage, error) {
 		return nil, err
 	}
 	defer file.Close()
-	cfg, _, err := image.DecodeConfig(file)
+	return readImage(file)
+}
+
+func readImage(file io.ReadSeeker) (*boardImage, error) {
+	cfg, format, err := image.DecodeConfig(file)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +108,12 @@ func loadImage(path string) (*boardImage, error) {
 	if _, err = file.Seek(0, 0); err != nil {
 		return nil, err
 	}
-	decoded, format, err := image.Decode(file)
+	var decoded image.Image
+	if format == "heic" {
+		decoded, err = heic.Decode(file, heic.Options{AutoRotate: true, FrameSizeLimit: 40_000_000, Threads: 4})
+	} else {
+		decoded, format, err = image.Decode(file)
+	}
 	if err != nil && format == "webp" {
 		if _, err = file.Seek(0, 0); err != nil {
 			return nil, err
@@ -111,8 +123,15 @@ func loadImage(path string) (*boardImage, error) {
 	if err != nil {
 		return nil, err
 	}
-	pixels := make([]byte, cfg.Width*cfg.Height*4)
 	bounds := decoded.Bounds()
+	if format == "heic" {
+		// Container rotation and cropping can change the configured dimensions.
+		cfg.Width, cfg.Height = bounds.Dx(), bounds.Dy()
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > 40_000_000 {
+		return nil, fmt.Errorf("image exceeds the prototype's 40 megapixel limit")
+	}
+	pixels := make([]byte, cfg.Width*cfg.Height*4)
 	rgba := &image.RGBA{Pix: pixels, Stride: cfg.Width * 4, Rect: image.Rect(0, 0, cfg.Width, cfg.Height)}
 	draw.Draw(rgba, rgba.Bounds(), decoded, bounds.Min, draw.Src)
 	for i := 0; i < len(pixels); i += 4 {
@@ -224,7 +243,7 @@ func drawHint(graphics uintptr, width int) {
 	call("GdipDeleteBrush", brush)
 	call("GdipCreateSolidFill", 0xfff5f6ff, uintptr(unsafe.Pointer(&brush)))
 	area := rectF{float32(40 * uiScale), float32(33 * uiScale), float32(w - 28*uiScale), float32(54 * uiScale)}
-	text := "Lunaria · Edit mode · Ctrl+Alt+L to finish\nDrop images here · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
+	text := "Lunaria · Edit mode · Ctrl+Alt+L to finish\nDrop or Ctrl+V to paste images · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
 	call("GdipDrawString", graphics, uintptr(unsafe.Pointer(u16(text))), ^uintptr(0), font, uintptr(unsafe.Pointer(&area)), 0, brush)
 	call("GdipDeleteBrush", brush)
 }

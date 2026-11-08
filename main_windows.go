@@ -20,6 +20,7 @@ type application struct {
 	display, editor                    uintptr
 	width, height                      int
 	images                             []*boardImage
+	storage                            string
 	selected                           int
 	editing, changing, dialog          bool
 	editFadeStart                      time.Time
@@ -95,6 +96,9 @@ func run() error {
 	}
 	app.width = metric(0)
 	app.height = metric(1)
+	if err := app.openStorage(); err != nil {
+		return err
+	}
 	app.host, _, err = createWindowEx.Call(wsExToolWindow, uintptr(unsafe.Pointer(wc.ClassName)), uintptr(unsafe.Pointer(u16("Lunaria"))), wsPopup, 0, 0, 0, 0, 0, 0, instance, 0)
 	if app.host == 0 {
 		return apiError("create tray host", err)
@@ -249,7 +253,6 @@ func (a *application) setEdit(edit bool) {
 		return
 	}
 	a.editClosing = false
-	showWindow.Call(a.board, swHide)
 	if edit {
 		valid, _, _ := user32.NewProc("IsWindow").Call(a.editor)
 		if valid == 0 {
@@ -261,6 +264,15 @@ func (a *application) setEdit(edit bool) {
 				notifyError("Could not open the editor")
 				return
 			}
+			// Keep Explorer from lowering the taskbar for this screen-sized editor.
+			if ok, _, err := user32.NewProc("SetPropW").Call(a.editor, uintptr(unsafe.Pointer(u16("NonRudeHWND"))), 1); ok == 0 {
+				destroyWindow.Call(a.editor)
+				a.editor = 0
+				a.editing = false
+				notifyError(apiError("keep editor below taskbar", err).Error())
+				showWindow.Call(a.board, swShowNoActivate)
+				return
+			}
 		}
 		a.board = a.editor
 		setWindowLong.Call(a.editor, gwlExStyle, wsExLayered|wsExToolWindow)
@@ -268,19 +280,22 @@ func (a *application) setEdit(edit bool) {
 		setWindowPos.Call(a.board, 0, 0, 0, uintptr(a.width), uintptr(a.height), swpNoActivate|swpFrameChanged)
 		if err := a.render(); err != nil {
 			a.failRender(err)
+			a.board = a.display
 			return
 		}
 		a.activateEditor()
+		// Keep the outgoing surface visible until its replacement is ready.
+		showWindow.Call(a.display, swHide)
 	}
 }
 
 func (a *application) finishEdit() {
 	a.editClosing = false
-	showWindow.Call(a.editor, swHide)
 	a.board = a.display
 	if err := a.attach(); err != nil {
 		showWindow.Call(a.board, swHide)
 	}
+	showWindow.Call(a.editor, swHide)
 }
 
 func (a *application) failRender(err error) {
@@ -298,20 +313,32 @@ func (a *application) redraw() {
 }
 
 func (a *application) addFile(path string) {
-	item, err := loadImage(path)
+	a.addFileAt(path, nil)
+}
+
+func (a *application) addFileAt(path string, position *vector) {
+	item, err := a.importImage(path)
 	if err != nil {
 		a.dialog = true
 		notifyError(fmt.Sprintf("Cannot add %s:\n%v", path, err))
 		a.dialog = false
 		return
 	}
+	a.addImage(item, position)
+}
+
+func (a *application) addImage(item *boardImage, position *vector) {
 	scale := math.Min(1, math.Min(float64(a.width)*0.55/item.W, float64(a.height)*0.55/item.H))
 	item.W *= scale
 	item.H *= scale
 	item.X = float64(a.width)/2 + float64(len(a.images)%5)*24
 	item.Y = float64(a.height)/2 + float64(len(a.images)%5)*24
+	if position != nil {
+		item.X, item.Y = position.x, position.y
+	}
 	a.images = append(a.images, item)
 	a.selected = len(a.images) - 1
+	a.persistBoard()
 	a.setEdit(true)
 	a.redraw()
 }
@@ -320,7 +347,7 @@ func (a *application) chooseFile() {
 	a.dialog = true
 	defer func() { a.dialog = false }()
 	var filename [32768]uint16
-	filter := utf16.Encode([]rune("Images (*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.tif;*.tiff)\x00*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.tif;*.tiff\x00All files\x00*.*\x00\x00"))
+	filter := utf16.Encode([]rune("Images (*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.heic;*.heif;*.bmp;*.tif;*.tiff)\x00*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.heic;*.heif;*.bmp;*.tif;*.tiff\x00All files\x00*.*\x00\x00"))
 	ofn := openFileName{Owner: a.host, Filter: &filter[0], File: &filename[0], MaxFile: uint32(len(filename)), Title: u16("Add image to Lunaria"), Flags: 0x80000 | 0x1000 | 0x800 | 8}
 	ofn.Size = uint32(unsafe.Sizeof(ofn))
 	if r, _, _ := getOpenFileName.Call(uintptr(unsafe.Pointer(&ofn))); r != 0 {
@@ -427,7 +454,14 @@ func (a *application) mouseMove(p vector) {
 	}
 	a.redraw()
 }
-func (a *application) stopDrag() { a.drag = ""; releaseCapture.Call() }
+func (a *application) stopDrag() {
+	changed := a.drag != ""
+	a.drag = ""
+	releaseCapture.Call()
+	if changed {
+		a.persistBoard()
+	}
+}
 
 func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 	a := app
@@ -468,14 +502,21 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 	case wmKeyDown:
 		if hwnd == a.board && a.editing {
 			ctrl, _, _ := getAsyncKeyState.Call(0x11)
+			if wparam == 'V' && ctrl&0x8000 != 0 {
+				a.paste()
+			}
 			if wparam == 0x1b || (wparam == 9 && ctrl&0x8000 != 0) {
 				a.setEdit(false)
 			}
 			if wparam == 0x2e && a.selected >= 0 {
 				a.stopDrag()
-				call("GdipDisposeImage", a.images[a.selected].Bitmap)
+				removed := a.images[a.selected]
+				call("GdipDisposeImage", removed.Bitmap)
 				a.images = append(a.images[:a.selected], a.images[a.selected+1:]...)
 				a.selected = -1
+				if a.persistBoard() && a.storage != "" {
+					os.Remove(filepath.Join(a.storage, "images", removed.File))
+				}
 				a.redraw()
 			}
 		}
@@ -494,7 +535,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		a.stopDrag()
 		return 0
 	case wmCaptureChanged:
-		a.drag = ""
+		a.stopDrag()
 		return 0
 	case wmDropFiles:
 		if a.editClosing {
@@ -516,6 +557,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			}
 		}
 		dragFinish.Call(wparam)
+		a.persistBoard()
 		a.redraw()
 		if !a.smoke {
 			setForegroundWindow.Call(a.editor)
@@ -572,6 +614,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			return 0
 		}
 		if hwnd == a.host {
+			a.stopDrag()
 			user32.NewProc("PostQuitMessage").Call(0)
 			return 0
 		}
@@ -612,6 +655,11 @@ func (a *application) smokeTick() {
 		check(a.editing && parent == 0, "editor is a top-level window")
 		check(ex&wsExTransparent == 0, "editor accepts input")
 		check(ex&0x10 != 0, "editor retains Shell file-drop registration")
+		visible, _, _ := user32.NewProc("IsWindowVisible").Call(a.editor)
+		passiveVisible, _, _ := user32.NewProc("IsWindowVisible").Call(a.display)
+		check(visible != 0 && passiveVisible == 0, "entering edit mode shows editor and hides passive surface")
+		nonRude, _, _ := user32.NewProc("GetPropW").Call(a.editor, uintptr(unsafe.Pointer(u16("NonRudeHWND"))))
+		check(nonRude != 0, "editor opts out of Shell fullscreen taskbar lowering")
 		if len(a.images) > 0 {
 			a.selected = 0
 			item := a.images[0]
@@ -643,6 +691,9 @@ func (a *application) smokeTick() {
 	case 3:
 		parent, _, _ := getParent.Call(a.board)
 		check(!a.editing && parent == a.desktop && parent != 0, "exit restores passive desktop surface")
+		visible, _, _ := user32.NewProc("IsWindowVisible").Call(a.display)
+		editorVisible, _, _ := user32.NewProc("IsWindowVisible").Call(a.editor)
+		check(visible != 0 && editorVisible == 0, "exiting edit mode shows passive surface and hides editor")
 		// Exercise the real Shell drag/drop payload API without moving the user's pointer.
 		path, err := filepath.Abs("testdata/sample.png")
 		check(err == nil, "resolve drop fixture")

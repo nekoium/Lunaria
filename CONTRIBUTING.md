@@ -1,12 +1,14 @@
 # Contributing
 
-Build on Windows with Go 1.25 or later. The prototype uses Windows system DLLs for its interface and rendering. BMP, TIFF, and WebP decoding use `golang.org/x/image`. AVIF decoding uses a bundled decoder through a Go WebAssembly runtime; users do not need to install an image codec.
+Build on Windows with Go 1.26.4 or later. The prototype uses Windows system DLLs for its interface and rendering. BMP, TIFF, and WebP decoding use `golang.org/x/image`. AVIF decoding uses a bundled decoder through a Go WebAssembly runtime; users do not need to install an image codec.
 
 ```powershell
 go test ./...
 go vet ./...
 go build -ldflags "-H windowsgui -s -w" -o Lunaria.exe .
 ```
+
+HEIC/HEIF decoding uses `github.com/gen2brain/h265/heic`, with automatic container transforms, a 40-million-pixel coded-frame limit, and at most four decoding workers. It selects the primary image or first sequence frame. RGB output retains the source color space; no additional ICC conversion or HDR tone mapping is applied. Runtime files do not require Windows HEIF/HEVC extensions.
 
 Include `THIRD_PARTY_NOTICES.txt` with binary distributions. Animated WebP import extracts and composites the first frame using the existing WebP decoder; it does not decode the remaining frames.
 
@@ -17,7 +19,9 @@ Start-Process .\Lunaria.exe -ArgumentList '--smoke-test', 'testdata/sample.png' 
 Get-Content .\smoke-result.json
 ```
 
-These checks exercise window styles, geometry, edit operations, synthetic Shell drop payloads, and surface recreation. Smoke mode does not request keyboard focus. They are not proof of usable desktop behavior.
+These checks exercise window styles, geometry, edit operations, synthetic Shell drop payloads, and surface recreation. Smoke mode does not request keyboard focus and does not read or write the user's saved board. They are not proof of usable desktop behavior.
+
+Board persistence tests use isolated temporary storage and cover restart restoration, source removal, deletion, completed drags, invalid metadata, failed atomic replacement, and smoke isolation. For manual restart testing, add images, move/resize/rotate them, quit through the tray, and relaunch; confirm image order and transforms persist even after moving the original files. Do not delete or edit the user's existing `%LOCALAPPDATA%\Lunaria` folder for testing.
 
 The checked-in `lunaria_windows_amd64.syso` embeds the Windows compatibility manifest needed for layered child windows. After editing `lunaria.manifest`, regenerate it with `go generate ./...`. This downloads the pinned resource compiler as a build tool, not an application dependency.
 
