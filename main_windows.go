@@ -228,6 +228,15 @@ func (a *application) setEdit(edit bool) {
 				notifyError("Could not open the editor")
 				return
 			}
+			// Keep Explorer from lowering the taskbar for this screen-sized editor.
+			if ok, _, err := user32.NewProc("SetPropW").Call(a.editor, uintptr(unsafe.Pointer(u16("NonRudeHWND"))), 1); ok == 0 {
+				destroyWindow.Call(a.editor)
+				a.editor = 0
+				a.editing = false
+				notifyError(apiError("keep editor below taskbar", err).Error())
+				showWindow.Call(a.board, swShowNoActivate)
+				return
+			}
 		}
 		a.board = a.editor
 		dragAcceptFiles.Call(a.board, 1)
@@ -585,6 +594,8 @@ func (a *application) smokeTick() {
 		visible, _, _ := user32.NewProc("IsWindowVisible").Call(a.editor)
 		passiveVisible, _, _ := user32.NewProc("IsWindowVisible").Call(a.display)
 		check(visible != 0 && passiveVisible == 0, "entering edit mode shows editor and hides passive surface")
+		nonRude, _, _ := user32.NewProc("GetPropW").Call(a.editor, uintptr(unsafe.Pointer(u16("NonRudeHWND"))))
+		check(nonRude != 0, "editor opts out of Shell fullscreen taskbar lowering")
 		if len(a.images) > 0 {
 			a.selected = 0
 			item := a.images[0]
