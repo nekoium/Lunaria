@@ -22,6 +22,10 @@ type application struct {
 	images                             []*boardImage
 	selected                           int
 	editing, changing, dialog          bool
+	editFadeStart                      time.Time
+	editFadeDuration                   time.Duration
+	editFadeFrom                       float64
+	editClosing                        bool
 	drag                               string
 	start                              vector
 	original                           boardImage
@@ -210,10 +214,42 @@ func (a *application) setEdit(edit bool) {
 		return
 	}
 	a.stopDrag()
+	from := 0.0
+	if a.editing || a.editClosing {
+		from = a.editFade()
+	}
+	user32.NewProc("KillTimer").Call(a.host, 3)
+	a.editFadeStart = time.Time{}
+	a.editClosing = !edit
+	a.editFadeFrom = from
+	a.editFadeDuration = 150 * time.Millisecond
+	if !edit {
+		a.editFadeDuration = 90 * time.Millisecond
+	}
+	var animate int32 = 1
+	user32.NewProc("SystemParametersInfoW").Call(0x1042, 0, uintptr(unsafe.Pointer(&animate)), 0)
+	if animate != 0 {
+		a.editFadeStart = time.Now()
+		if timer, _, _ := user32.NewProc("SetTimer").Call(a.host, 3, 15, 0); timer == 0 {
+			a.editFadeStart = time.Time{}
+		}
+	}
 	a.changing = true
 	defer func() { a.changing = false }()
-	showWindow.Call(a.board, swHide)
 	a.editing = edit
+	if !edit {
+		a.selected = -1
+		if !a.editFadeStart.IsZero() {
+			// Return desktop input immediately while the overlay finishes fading.
+			setWindowLong.Call(a.editor, gwlExStyle, wsExLayered|wsExToolWindow|wsExTransparent|wsExNoActivate)
+			a.redraw()
+			return
+		}
+		a.finishEdit()
+		return
+	}
+	a.editClosing = false
+	showWindow.Call(a.board, swHide)
 	if edit {
 		valid, _, _ := user32.NewProc("IsWindow").Call(a.editor)
 		if valid == 0 {
@@ -227,6 +263,7 @@ func (a *application) setEdit(edit bool) {
 			}
 		}
 		a.board = a.editor
+		setWindowLong.Call(a.editor, gwlExStyle, wsExLayered|wsExToolWindow)
 		dragAcceptFiles.Call(a.board, 1)
 		setWindowPos.Call(a.board, 0, 0, 0, uintptr(a.width), uintptr(a.height), swpNoActivate|swpFrameChanged)
 		if err := a.render(); err != nil {
@@ -234,17 +271,22 @@ func (a *application) setEdit(edit bool) {
 			return
 		}
 		a.activateEditor()
-	} else {
-		a.board = a.display
-		a.selected = -1
-		a.changing = false
-		if err := a.attach(); err != nil {
-			showWindow.Call(a.board, swHide)
-		}
-		a.changing = true
 	}
 }
+
+func (a *application) finishEdit() {
+	a.editClosing = false
+	showWindow.Call(a.editor, swHide)
+	a.board = a.display
+	if err := a.attach(); err != nil {
+		showWindow.Call(a.board, swHide)
+	}
+}
+
 func (a *application) failRender(err error) {
+	user32.NewProc("KillTimer").Call(a.host, 3)
+	a.editFadeStart = time.Time{}
+	a.editClosing = false
 	showWindow.Call(a.board, swHide)
 	a.editing = false
 	notifyError(err.Error())
@@ -418,7 +460,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		}
 		return 0
 	case 0x0046: // WM_WINDOWPOSCHANGING
-		if hwnd == a.editor && a.editing && lparam != 0 {
+		if hwnd == a.editor && (a.editing || a.editClosing) && lparam != 0 {
 			a.keepEditorBelowApps(lparam)
 		}
 	case wmActivate:
@@ -455,6 +497,10 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		a.drag = ""
 		return 0
 	case wmDropFiles:
+		if a.editClosing {
+			dragFinish.Call(wparam)
+			return 0
+		}
 		var drop point
 		shell32.NewProc("DragQueryPoint").Call(wparam, uintptr(unsafe.Pointer(&drop)))
 		count, _, _ := dragQueryFile.Call(wparam, 0xffffffff, 0, 0)
@@ -477,24 +523,43 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		return 0
 	case wmDisplayChange:
 		a.setEdit(false)
+		if a.editClosing {
+			user32.NewProc("KillTimer").Call(a.host, 3)
+			a.editFadeStart = time.Time{}
+			a.finishEdit()
+		}
 		a.width = metric(0)
 		a.height = metric(1)
 		postMessage.Call(a.host, wmRecover, 0, 0)
 		return 0
 	case wmRecover:
-		if !a.editing {
+		if !a.editing && !a.editClosing {
 			if err := a.attach(); err != nil {
 				showWindow.Call(a.board, swHide)
 			}
 		}
 		return 0
 	case wmTimer:
+		if wparam == 3 {
+			if a.editFadeStart.IsZero() || time.Since(a.editFadeStart) >= a.editFadeDuration {
+				user32.NewProc("KillTimer").Call(a.host, 3)
+				a.editFadeStart = time.Time{}
+				if a.editClosing {
+					a.finishEdit()
+					return 0
+				}
+			}
+			if a.editing || a.editClosing {
+				a.redraw()
+			}
+			return 0
+		}
 		if wparam == 2 {
 			a.smokeTick()
 			return 0
 		}
 		a.watchEditor()
-		if !a.editing && !a.changing {
+		if !a.editing && !a.editClosing && !a.changing {
 			valid, _, _ := user32.NewProc("IsWindow").Call(a.board)
 			if valid == 0 {
 				postMessage.Call(a.host, wmRecover, 0, 0)

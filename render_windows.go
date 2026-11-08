@@ -13,6 +13,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 
 	_ "github.com/gen2brain/avif"
@@ -39,6 +40,23 @@ type rectF struct{ X, Y, W, H float32 }
 var gdiToken, font uintptr
 var uiScale = 1.0
 var handleGap = 32.0
+
+func (a *application) editFade() float64 {
+	target := 1.0
+	if a.editClosing {
+		target = 0
+	}
+	if a.editFadeStart.IsZero() {
+		return target
+	}
+	return overlayFade(a.editFadeFrom, target, time.Since(a.editFadeStart), a.editFadeDuration)
+}
+
+func overlayFade(from, target float64, elapsed, duration time.Duration) float64 {
+	progress := math.Min(1, math.Max(0, float64(elapsed)/float64(duration)))
+	eased := 1 - math.Pow(1-progress, 3)
+	return from + (target-from)*eased
+}
 
 func startGraphics() error {
 	if proc := user32.NewProc("GetDpiForSystem"); proc.Find() == nil {
@@ -140,15 +158,18 @@ func (a *application) render() error {
 		return fmt.Errorf("create renderer")
 	}
 	call("GdipGraphicsClear", graphics, 0)
-	if !a.editing && a.desktopAfter != 0 {
+	if !a.editing && !a.editClosing && a.desktopAfter != 0 {
 		// shortcut: color-keyed GDI flattens partial alpha and keys out #010203; use alpha-capable composition when transparency fidelity is required.
 		call("GdipGraphicsClear", graphics, 0xff010203)
 	}
 	call("GdipSetSmoothingMode", graphics, 4)
 	call("GdipSetInterpolationMode", graphics, 7)
 	call("GdipSetPixelOffsetMode", graphics, 4)
-	if a.editing {
-		call("GdipGraphicsClear", graphics, 0x90e8ebf5)
+	progress := a.editFade()
+	if a.editing || a.editClosing {
+		// Keep a nonzero background alpha so input works from the first frame.
+		alpha := math.Max(1, math.Round(144*progress))
+		call("GdipGraphicsClear", graphics, uintptr(uint32(alpha)<<24|0xe8ebf5))
 	}
 	for _, item := range a.images {
 		call("GdipResetWorldTransform", graphics)
@@ -170,7 +191,7 @@ func (a *application) render() error {
 		pngEncoder := syscall.GUID{Data1: 0x557cf406, Data2: 0x1a04, Data3: 0x11d3, Data4: [8]byte{0x9a, 0x73, 0, 0, 0xf8, 0x1e, 0xf3, 0x2e}}
 		call("GdipSaveImageToFile", bitmap, uintptr(unsafe.Pointer(u16(".tmp/edit-preview.png"))), uintptr(unsafe.Pointer(&pngEncoder)), 0)
 	}
-	if !a.editing && a.desktopAfter != 0 {
+	if !a.editing && !a.editClosing && a.desktopAfter != 0 {
 		// Raised Explorer desktops need GDI-compatible layering below the icon view.
 		ok, _, err := user32.NewProc("SetLayeredWindowAttributes").Call(a.board, 0x030201, 255, 3)
 		if ok == 0 {
