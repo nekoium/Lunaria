@@ -8,6 +8,8 @@ go vet ./...
 go build -ldflags "-H windowsgui -s -w" -o Lunaria.exe .
 ```
 
+`TestIssue8Measure` checks the performance targets in `docs/PRD-performance.md`. It needs the issue #4 image at `.tmp/issue-8/issue4.avif`. Run it with `$env:LUNARIA_MEASURE='1'; go test -run TestIssue8Measure -v -timeout 20m .`. It measures the test process, which uses more memory than Lunaria.exe.
+
 HEIC/HEIF decoding uses `github.com/gen2brain/h265/heic`, with automatic container transforms, a 40-million-pixel coded-frame limit, and at most four decoding workers. It selects the primary image or first sequence frame. RGB output retains the source color space; no additional ICC conversion or HDR tone mapping is applied. Runtime files do not require Windows HEIF/HEVC extensions.
 
 Include `THIRD_PARTY_NOTICES.txt` with binary distributions. Animated WebP import extracts and composites the first frame using the existing WebP decoder; it does not decode the remaining frames.
