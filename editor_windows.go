@@ -39,10 +39,15 @@ func editorInsertionPoint() uintptr {
 	return editorAbove
 }
 func (a *application) activateEditor() {
-	// Do not interrupt an Explorer drag or raise the editor above application windows.
+	// Do not interrupt an Explorer drag; desktop editing stays below application windows.
 	showWindow.Call(a.editor, swShowNoActivate)
-	setWindowPos.Call(a.editor, editorInsertionPoint(), 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate|swpShowWindow)
+	after := hwndTopmost
+	if !a.floating {
+		after = editorInsertionPoint()
+	}
+	setWindowPos.Call(a.editor, after, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate|swpShowWindow)
 	if !a.smoke && !mouseHeld() {
+		a.rememberForeground()
 		setForegroundWindow.Call(a.editor)
 	}
 }
@@ -56,7 +61,7 @@ type windowPosition struct {
 func (a *application) keepEditorBelowApps(address uintptr) {
 	var position windowPosition
 	kernel32.NewProc("RtlMoveMemory").Call(uintptr(unsafe.Pointer(&position)), address, unsafe.Sizeof(position))
-	if position.Flags&4 != 0 {
+	if position.Flags&4 != 0 || position.After == hwndNotTopmost {
 		return
 	}
 	position.After = editorInsertionPoint()
@@ -66,23 +71,37 @@ func mouseHeld() bool {
 	state, _, _ := getAsyncKeyState.Call(1)
 	return state&0x8000 != 0
 }
-func (a *application) watchEditor() {
-	if a.smoke || !a.editing || a.changing || a.dialog || a.drag != "" || mouseHeld() {
-		return
+
+var editorForegroundWindow = func() uintptr {
+	hwnd, _, _ := getForegroundWindow.Call()
+	return hwnd
+}
+
+func (a *application) desktopEditCovered(foreground uintptr) bool {
+	if a.floating || !a.editing {
+		return false
 	}
-	foreground, _, _ := getForegroundWindow.Call()
-	if foreground == 0 {
-		return
+	if foreground == a.editor || foreground == a.host {
+		foreground = a.foregroundBeforeEdit
 	}
-	if foreground == a.editor {
-		return
+	if foreground == 0 || foreground == a.editor || foreground == a.host || foreground == a.display {
+		return false
 	}
 	class := windowClass(foreground)
 	if class == "Progman" || class == "WorkerW" || class == "Shell_TrayWnd" || class == "NotifyIconOverflowWindow" || class == "#32768" {
+		return false
+	}
+	visible, _, _ := user32.NewProc("IsWindowVisible").Call(foreground)
+	minimized, _, _ := user32.NewProc("IsIconic").Call(foreground)
+	zoomed, _, _ := user32.NewProc("IsZoomed").Call(foreground)
+	return visible != 0 && minimized == 0 && zoomed != 0
+}
+
+func (a *application) watchEditor() {
+	if a.smoke || a.floating || !a.editing || a.changing || a.dialog || a.drag != "" || mouseHeld() {
 		return
 	}
-	zoomed, _, _ := user32.NewProc("IsZoomed").Call(foreground)
-	if zoomed != 0 {
+	if a.desktopEditCovered(editorForegroundWindow()) {
 		a.setEdit(false)
 	}
 }

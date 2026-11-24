@@ -193,7 +193,7 @@ func (a *application) render() error {
 		return fmt.Errorf("create renderer")
 	}
 	call("GdipGraphicsClear", graphics, 0)
-	if !a.editing && !a.editClosing && a.desktopAfter != 0 {
+	if !a.floating && !a.editing && !a.editClosing && a.desktopAfter != 0 {
 		// shortcut: color-keyed GDI flattens partial alpha and keys out #010203; use alpha-capable composition when transparency fidelity is required.
 		call("GdipGraphicsClear", graphics, 0xff010203)
 	}
@@ -226,7 +226,7 @@ func (a *application) render() error {
 		pngEncoder := syscall.GUID{Data1: 0x557cf406, Data2: 0x1a04, Data3: 0x11d3, Data4: [8]byte{0x9a, 0x73, 0, 0, 0xf8, 0x1e, 0xf3, 0x2e}}
 		call("GdipSaveImageToFile", bitmap, uintptr(unsafe.Pointer(u16(".tmp/edit-preview.png"))), uintptr(unsafe.Pointer(&pngEncoder)), 0)
 	}
-	if !a.editing && !a.editClosing && a.desktopAfter != 0 {
+	if !a.floating && !a.editing && !a.editClosing && a.desktopAfter != 0 {
 		// Raised Explorer desktops need GDI-compatible layering below the icon view.
 		ok, _, err := user32.NewProc("SetLayeredWindowAttributes").Call(a.board, 0x030201, 255, 3)
 		if ok == 0 {
