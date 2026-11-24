@@ -218,4 +218,14 @@ func TestFloatingBoardModes(t *testing.T) {
 	a.watchEditor()
 	a.smoke = true
 	check(false, false)
+	// Covered entry on a fresh launch must not try to fade the desktop surface.
+	a.editFadeStart = time.Now().Add(-time.Second)
+	windowProc(a.host, wmTimer, 3, 0)
+	destroyWindow.Call(a.editor)
+	a.editor = 0
+	windowProc(a.host, wmHotKey, 1, 0)
+	check(false, false)
+	if a.editor != 0 || a.editClosing || a.board != a.display {
+		t.Fatal("covered desktop entry created an editor or left a fade active")
+	}
 }

@@ -46,6 +46,14 @@ func (a *application) setFloating(floating bool) {
 
 func (a *application) showBoard() error {
 	if a.desktopEditCovered(editorForegroundWindow()) {
+		if a.editor == 0 || a.board != a.editor {
+			// There is no visible editor to fade when entry is already covered.
+			user32.NewProc("KillTimer").Call(a.host, 3)
+			a.editFadeStart = time.Time{}
+			a.editClosing, a.editing = false, false
+			a.selected = -1
+			return a.showBoard()
+		}
 		// Apply desktop auto-exit before activation can hide the covering app.
 		setWindowPos.Call(a.editor, hwndNotTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate)
 		changing := a.changing
