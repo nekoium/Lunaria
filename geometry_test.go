@@ -13,6 +13,20 @@ import (
 	"testing"
 )
 
+func TestFitSize(t *testing.T) {
+	for _, tc := range []struct{ w, h, maxW, maxH, wantW, wantH int }{
+		{4000, 6000, 1056, 594, 396, 594},
+		{6000, 4000, 1056, 594, 891, 594},
+		{640, 420, 1056, 594, 640, 420},
+		{10000, 1, 1056, 594, 1056, 1},
+		{4000, 6000, 0, 0, 4000, 6000},
+	} {
+		if w, h := fitSize(tc.w, tc.h, tc.maxW, tc.maxH); w != tc.wantW || h != tc.wantH {
+			t.Errorf("fitSize(%d, %d, %d, %d) = %d, %d; want %d, %d", tc.w, tc.h, tc.maxW, tc.maxH, w, h, tc.wantW, tc.wantH)
+		}
+	}
+}
+
 func TestRotatedGeometry(t *testing.T) {
 	item := boardImage{X: 200, Y: 150, W: 120, H: 80, Angle: 37}
 	for _, p := range []vector{{0, 0}, {-60, -40}, {23, 17}} {

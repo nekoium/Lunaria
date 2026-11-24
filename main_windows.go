@@ -21,6 +21,7 @@ type application struct {
 	width, height                      int
 	images                             []*boardImage
 	storage                            string
+	imports                            *imageImports
 	selected                           int
 	editing, changing, dialog          bool
 	floating                           bool
@@ -83,6 +84,10 @@ func run() error {
 			call("GdipDisposeImage", im.Bitmap)
 		}
 	}()
+	if !app.smoke {
+		app.imports = &imageImports{}
+		defer app.stopImports()
+	}
 	instance, _, _ := kernel32.NewProc("GetModuleHandleW").Call(0)
 	cursor, _, _ := loadCursor.Call(0, 32512)
 	icon := makeTrayIcon()
@@ -293,6 +298,12 @@ func (a *application) addFile(path string) {
 }
 
 func (a *application) addFileAt(path string, position *vector) {
+	if a.imports != nil {
+		a.queueImport(imageImport{path: path, position: position})
+		a.setEdit(true)
+		a.redraw()
+		return
+	}
 	item, err := a.importImage(path)
 	if err != nil {
 		a.dialog = true
@@ -304,6 +315,10 @@ func (a *application) addFileAt(path string, position *vector) {
 }
 
 func (a *application) addImage(item *boardImage, position *vector) {
+	a.addImageAt(item, position, false, true)
+}
+
+func (a *application) addImageAt(item *boardImage, position *vector, clamp, enterEdit bool) {
 	scale := math.Min(1, math.Min(float64(a.width)*0.55/item.W, float64(a.height)*0.55/item.H))
 	item.W *= scale
 	item.H *= scale
@@ -312,10 +327,16 @@ func (a *application) addImage(item *boardImage, position *vector) {
 	if position != nil {
 		item.X, item.Y = position.x, position.y
 	}
+	if clamp {
+		item.X = math.Max(item.W/2, math.Min(float64(a.width)-item.W/2, item.X))
+		item.Y = math.Max(item.H/2, math.Min(float64(a.height)-item.H/2, item.Y))
+	}
 	a.images = append(a.images, item)
 	a.selected = len(a.images) - 1
 	a.persistBoard()
-	a.setEdit(true)
+	if enterEdit {
+		a.setEdit(true)
+	}
 	a.redraw()
 }
 
@@ -398,8 +419,14 @@ func (a *application) mouseDown(p vector) {
 		a.selected = -1
 		for i := len(a.images) - 1; i >= 0; i-- {
 			if a.images[i].contains(p) {
-				a.selected = i
+				item := a.images[i]
+				copy(a.images[i:], a.images[i+1:])
+				a.selected = len(a.images) - 1
+				a.images[a.selected] = item
 				a.drag = "move"
+				if i != a.selected {
+					a.persistBoard()
+				}
 				break
 			}
 		}
@@ -507,6 +534,11 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			}
 		}
 		return 0
+	case wmRButtonUp:
+		if hwnd == a.board {
+			a.imageMenu(pointerFrom(lparam))
+		}
+		return 0
 	case wmLButtonDown:
 		if hwnd == a.board {
 			a.mouseDown(pointerFrom(lparam))
@@ -534,6 +566,11 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		for i := uintptr(0); i < count; i++ {
 			var path [32768]uint16
 			dragQueryFile.Call(wparam, i, uintptr(unsafe.Pointer(&path[0])), uintptr(len(path)))
+			if a.imports != nil {
+				target := vector{float64(drop.X) + float64(i)*24, float64(drop.Y) + float64(i)*24}
+				a.queueImport(imageImport{path: syscall.UTF16ToString(path[:]), position: &target, clamp: true})
+				continue
+			}
 			before := len(a.images)
 			a.addFile(syscall.UTF16ToString(path[:]))
 			if len(a.images) > before {
@@ -543,6 +580,9 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			}
 		}
 		dragFinish.Call(wparam)
+		if a.imports != nil {
+			a.setEdit(true)
+		}
 		a.persistBoard()
 		a.redraw()
 		if !a.smoke {
@@ -587,6 +627,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			a.smokeTick()
 			return 0
 		}
+		a.importTick()
 		a.watchEditor()
 		if !a.editing && !a.editClosing && !a.changing {
 			valid, _, _ := user32.NewProc("IsWindow").Call(a.board)

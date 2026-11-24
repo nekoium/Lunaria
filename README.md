@@ -10,8 +10,9 @@ Download **Lunaria.exe** from [GitHub Releases](https://github.com/nekoium/Lunar
 - Press **Ctrl+Alt+Shift+L** to switch between desktop placement and floating above apps. You can also choose **Float above apps** or **Return to desktop** from the tray menu. Switching placement preserves whether you are editing, except that returning to desktop behind a maximized app ends editing.
 - Right-click the icon and choose **Add Image…** to select an image. PNG, JPEG, GIF, WebP, AVIF, HEIC, HEIF, BMP, and TIFF are supported; animated or multipage images display their first frame or page. Lunaria detects the format from the file contents, including AVIF images downloaded with a `.jpg` name.
 - In edit mode, you can also drop image files onto the board or press **Ctrl+V** to paste copied image files, screenshots, or clipboard images.
-- Click an image to select it. Drag its body to move it, a corner to resize it, or the handle extending from its top edge to rotate it. Rotation snaps near quarter turns.
+- Left-click an image to select it and bring it to the front. Drag its body to move it, a corner to resize it, or the handle extending from its top edge to rotate it. Rotation snaps near quarter turns.
 - Press **Delete** to remove the selected image.
+- In edit mode, right-click an image and choose **Download** to save its original file in your Downloads folder. Existing files are never replaced.
 - Press **Escape**, **Ctrl+Tab**, or **Ctrl+Alt+L** to finish editing. In desktop placement, activating a maximized application also ends editing. Floating edit mode stays open when switching applications.
 - Right-click the notification-area icon and choose **Quit** to close Lunaria.
 
@@ -27,7 +28,7 @@ Board order, positions, sizes, and rotations are restored on launch. Saves repla
 
 This prototype supports Windows and the primary monitor only. It has no settings, automatic startup, or configurable shortcuts. Images larger than 40 megapixels are rejected.
 
-Images stay local. Lunaria does not upload them or connect to a service. HEIC/HEIF import uses a bundled pure Go HEVC decoder, applies container rotation, and displays the primary image or first sequence frame. No Windows codec installation is needed. HEIF files using other codecs may be unsupported. HEIC colors remain in the source color space; ICC profiles and HDR are not converted for display. Large images can use substantial temporary memory; AVIF imports can take several seconds.
+Images stay local. Lunaria does not upload them or connect to a service. HEIC/HEIF import uses a bundled pure Go HEVC decoder, applies container rotation, and displays the primary image or first sequence frame. No Windows codec installation is needed. HEIF files using other codecs may be unsupported. HEIC colors remain in the source color space; ICC profiles and HDR are not converted for display. Lunaria keeps smaller display copies in memory, capped to a 1080p screen budget. Enlarging an image can make it softer; **Download** saves the unchanged original. Images load one at a time in the background so you can keep editing. Large AVIF files can still take several seconds; Lunaria shows a loading hint and a notification for a slow import. Temporary memory use can rise while decoding.
 
 In desktop placement, passive images appear below desktop icons. On newer Windows desktop layouts, partially transparent image areas can appear darker in desktop normal mode, and exact #010203 pixels are treated as transparent. Floating placement and edit mode preserve per-pixel transparency. Desktop attachment depends on Explorer; if no suitable desktop host is available, the board stays hidden rather than moving above icons. Both shortcuts must be available; Lunaria reports a conflict if another application has registered either one.
 

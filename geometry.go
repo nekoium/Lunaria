@@ -4,6 +4,14 @@ import "math"
 
 type vector struct{ x, y float64 }
 
+func fitSize(w, h, maxW, maxH int) (int, int) {
+	if maxW < 1 || maxH < 1 {
+		return w, h
+	}
+	scale := min(1.0, float64(maxW)/float64(w), float64(maxH)/float64(h))
+	return max(1, int(math.Round(float64(w)*scale))), max(1, int(math.Round(float64(h)*scale)))
+}
+
 func (item *boardImage) world(x, y float64) vector {
 	r := item.Angle * math.Pi / 180
 	c, s := math.Cos(r), math.Sin(r)

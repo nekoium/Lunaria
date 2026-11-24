@@ -228,6 +228,52 @@ func TestPasteClipboard(t *testing.T) {
 			})
 		}
 	}
+	for _, tc := range []struct {
+		name   string
+		format uintptr
+		data   []byte
+		count  int
+	}{
+		{"queued PNG", pngFormat, encoded.Bytes(), 1},
+		{"queued files", cfHDrop, drop, 7},
+		{"queued DIB", 8, dib, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			set(tc.format, tc.data)
+			a := &application{board: owner, editor: owner, width: 1000, height: 800, editing: true, selected: -1, storage: t.TempDir(), imports: &imageImports{}}
+			defer func() {
+				a.stopImports()
+				for _, item := range a.images {
+					call("GdipDisposeImage", item.Bitmap)
+				}
+			}()
+			position := vector{137, -29}
+			if err := a.pasteClipboard(&position); err != nil {
+				t.Fatal(err)
+			}
+			if len(a.images) != 0 {
+				t.Fatal("paste decoded synchronously")
+			}
+			// Clipboard ownership can change as soon as paste returns.
+			set(13, []byte{'x', 0, 0, 0})
+			a.editing = false
+			drainImports(t, a)
+			if len(a.images) != tc.count || a.editing {
+				t.Fatalf("queued paste count=%d editing=%v", len(a.images), a.editing)
+			}
+			for i, item := range a.images {
+				if item.X != position.x+float64(i)*24 || item.Y != position.y+float64(i)*24 {
+					t.Fatalf("queued paste lost position: image %d at %v,%v", i, item.X, item.Y)
+				}
+				if tc.name != "queued DIB" {
+					got, err := os.ReadFile(filepath.Join(a.storage, "images", item.File))
+					if err != nil || !bytes.Equal(got, encoded.Bytes()) {
+						t.Fatalf("clipboard data changed after return: %v", err)
+					}
+				}
+			}
+		})
+	}
 	for _, position := range []*vector{nil, {137, -29}} {
 		a := &application{board: owner, width: 1000, height: 800, editing: true}
 		item, err := loadImage(path)

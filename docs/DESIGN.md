@@ -41,11 +41,12 @@ During editing:
 - The board becomes interactive and accepts clicks and drags.
 - In desktop placement, the board stays below ordinary application windows.
 - Editing may take keyboard focus. There is no requirement to preserve another application's focus.
-- Click an image to select it and show its handles. Click empty space to deselect.
+- Left-click an image to select it, bring it in front of the other images, and show its handles. Click empty space to deselect. Right-click selection and handle interactions keep the layer order. Bringing an image forward applies only to left-click single-image selection; rectangle selection must preserve layer order.
 - Move images by dragging.
 - Resize images with their aspect ratio locked.
 - Rotate images using handles, with snapping at 0°, 90°, 180°, and 270°.
 - Remove selected images with Delete.
+- Right-click an image and choose Download to save its original file in the Downloads folder. Download never replaces an existing file.
 
 Calling edit mode gives the editor keyboard focus so local keyboard commands work. An active file drag must continue uninterrupted; the editor can take focus after the drop.
 
@@ -55,7 +56,11 @@ Leaving edit mode returns the board to click-through display and removes the edi
 
 ## Adding images
 
-Add images through drag-and-drop or **Add Image…** in the tray menu. There is no separate import workflow.
+Add images through drag-and-drop, clipboard paste, or **Add Image…** in the tray menu. There is no separate import workflow.
+
+Images load one at a time while the board stays usable. Edit mode shows a short adding hint. If an image takes longer than one second, Lunaria can show a nonblocking slow-import notification once per session. Large AVIF images remain a speed exception. Closing editing while an image loads must keep editing closed when it finishes. Completed images must not interrupt an active drag.
+
+Display copies can be smaller than the originals to keep memory low; enlarging them may soften detail. The original file stays unchanged for Download.
 
 ## Board persistence
 
@@ -75,6 +80,6 @@ Adding or deleting an image and completing a move, resize, or rotation automatic
 
 - The requirement that editing never takes focus.
 - Configurable shortcuts and hold-to-edit mode.
-- Image context menus, including copy, save as, and reset aspect ratio.
+- Other image context-menu actions, including copy, save as, and reset aspect ratio.
 - Settings window, launch at login, open data folder, and version display.
 - Text notes, multiple boards, multiple monitors, and cloud sync.

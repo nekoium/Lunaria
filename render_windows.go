@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 	"unsafe"
@@ -20,6 +21,7 @@ import (
 	_ "github.com/gen2brain/avif"
 	"github.com/gen2brain/h265/heic"
 	_ "golang.org/x/image/bmp"
+	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 )
@@ -94,7 +96,15 @@ func loadImage(path string) (*boardImage, error) {
 		return nil, err
 	}
 	defer file.Close()
-	return readImage(file)
+	item, err := readImage(file)
+	// Return decoder memory to Windows so idle memory matches the kept images.
+	debug.FreeOSMemory()
+	return item, err
+}
+
+func defaultImageBounds() (int, int) {
+	// Keep the MVP's pixel budget on larger or high-DPI desktops too.
+	return int(float64(min(metric(0), 1920)) * 0.55), int(float64(min(metric(1), 1080)) * 0.55)
 }
 
 func readImage(file io.ReadSeeker) (*boardImage, error) {
@@ -131,15 +141,21 @@ func readImage(file io.ReadSeeker) (*boardImage, error) {
 	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > 40_000_000 {
 		return nil, fmt.Errorf("image exceeds the prototype's 40 megapixel limit")
 	}
-	pixels := make([]byte, cfg.Width*cfg.Height*4)
-	rgba := &image.RGBA{Pix: pixels, Stride: cfg.Width * 4, Rect: image.Rect(0, 0, cfg.Width, cfg.Height)}
-	draw.Draw(rgba, rgba.Bounds(), decoded, bounds.Min, draw.Src)
+	maxW, maxH := defaultImageBounds()
+	w, h := fitSize(cfg.Width, cfg.Height, maxW, maxH)
+	pixels := make([]byte, w*h*4)
+	rgba := &image.RGBA{Pix: pixels, Stride: w * 4, Rect: image.Rect(0, 0, w, h)}
+	if w == cfg.Width && h == cfg.Height {
+		draw.Draw(rgba, rgba.Bounds(), decoded, bounds.Min, draw.Src)
+	} else {
+		xdraw.BiLinear.Scale(rgba, rgba.Bounds(), decoded, bounds, xdraw.Src, nil)
+	}
 	for i := 0; i < len(pixels); i += 4 {
 		pixels[i], pixels[i+2] = pixels[i+2], pixels[i]
 	}
-	item := &boardImage{Pixels: pixels, W: float64(cfg.Width), H: float64(cfg.Height)}
+	item := &boardImage{Pixels: pixels, W: float64(w), H: float64(h)}
 	// Scan0 retains this buffer; each item's Pixels field keeps it alive until bitmap disposal.
-	status := call("GdipCreateBitmapFromScan0", uintptr(cfg.Width), uintptr(cfg.Height), uintptr(cfg.Width*4), 0xe200b, uintptr(unsafe.Pointer(&pixels[0])), uintptr(unsafe.Pointer(&item.Bitmap)))
+	status := call("GdipCreateBitmapFromScan0", uintptr(w), uintptr(h), uintptr(w*4), 0xe200b, uintptr(unsafe.Pointer(&pixels[0])), uintptr(unsafe.Pointer(&item.Bitmap)))
 	runtime.KeepAlive(pixels)
 	if status != 0 {
 		return nil, fmt.Errorf("create image: %d", status)
@@ -203,7 +219,7 @@ func (a *application) render() error {
 		if a.selected >= 0 && a.selected < len(a.images) {
 			drawHandles(graphics, a.images[a.selected])
 		}
-		drawHint(graphics, a.width)
+		drawHint(graphics, a.width, a.imports != nil && a.imports.active != nil)
 	}
 	call("GdipDeleteGraphics", graphics)
 	if a.smoke && a.smokeStage == 2 && a.selected >= 0 {
@@ -235,7 +251,7 @@ func (a *application) render() error {
 	return nil
 }
 
-func drawHint(graphics uintptr, width int) {
+func drawHint(graphics uintptr, width int, loading bool) {
 	var brush uintptr
 	call("GdipCreateSolidFill", 0xf5222635, uintptr(unsafe.Pointer(&brush)))
 	w := math.Min(float64(width)-48*uiScale, 1050*uiScale)
@@ -243,7 +259,11 @@ func drawHint(graphics uintptr, width int) {
 	call("GdipDeleteBrush", brush)
 	call("GdipCreateSolidFill", 0xfff5f6ff, uintptr(unsafe.Pointer(&brush)))
 	area := rectF{float32(40 * uiScale), float32(33 * uiScale), float32(w - 28*uiScale), float32(54 * uiScale)}
-	text := "Lunaria · Edit mode · Ctrl+Alt+L to finish\nDrop or Ctrl+V to paste images · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
+	title := "Lunaria · Edit mode · Ctrl+Alt+L to finish"
+	if loading {
+		title += " · Adding image…"
+	}
+	text := title + "\nDrop or Ctrl+V to paste images · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
 	call("GdipDrawString", graphics, uintptr(unsafe.Pointer(u16(text))), ^uintptr(0), font, uintptr(unsafe.Pointer(&area)), 0, brush)
 	call("GdipDeleteBrush", brush)
 }

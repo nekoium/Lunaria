@@ -155,6 +155,37 @@ func TestAVIFImageSizeLimit(t *testing.T) {
 	}
 }
 
+func TestReadImageKeepsDefaultSize(t *testing.T) {
+	imageTestGraphics(t)
+	im := image.NewNRGBA(image.Rect(0, 0, 3000, 2000))
+	for i := 0; i < len(im.Pix); i += 4 {
+		im.Pix[i], im.Pix[i+1], im.Pix[i+2], im.Pix[i+3] = 240, 30, 10, 128
+	}
+	var data bytes.Buffer
+	if err := png.Encode(&data, im); err != nil {
+		t.Fatal(err)
+	}
+	item, err := readImage(bytes.NewReader(data.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer call("GdipDisposeImage", item.Bitmap)
+	maxW, maxH := defaultImageBounds()
+	wantW, wantH := fitSize(3000, 2000, maxW, maxH)
+	if wantW == 3000 {
+		t.Skip("screen is too large for this test")
+	}
+	if item.W != float64(wantW) || item.H != float64(wantH) || len(item.Pixels) != wantW*wantH*4 {
+		t.Fatalf("kept size=%vx%v bytes=%d; want %dx%d bytes=%d", item.W, item.H, len(item.Pixels), wantW, wantH, wantW*wantH*4)
+	}
+	center := ((wantH/2)*wantW + wantW/2) * 4
+	for i, want := range []byte{5, 15, 120, 128} {
+		if delta := int(item.Pixels[center+i]) - int(want); delta < -3 || delta > 3 {
+			t.Fatalf("center premultiplied BGRA=%v; want approximately [5 15 120 128]", item.Pixels[center:center+4])
+		}
+	}
+}
+
 func TestRasterPremultipliedAlpha(t *testing.T) {
 	imageTestGraphics(t)
 	im := image.NewNRGBA(image.Rect(0, 0, 4, 2))
