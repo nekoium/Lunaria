@@ -54,10 +54,23 @@ func TestSelectingImageBringsItToFront(t *testing.T) {
 	if bottom.W != 240 || bottom.H != 240 || middle.W != 200 {
 		t.Fatal("resize targeted the wrong image after changing layer order")
 	}
-	a.mouseDown(vector{900, 900})
+	// A lower image selected through another gesture must keep its layer when a handle is used.
+	a.selected = 0
+	a.mouseDown(middle.corners()[1])
 	a.stopDrag()
-	if a.selected != -1 || a.images[2] != bottom {
-		t.Fatal("clicking empty space changed layer order")
+	if a.selected != 0 || a.images[0] != middle || a.images[2] != bottom {
+		t.Fatal("resize-handle interaction changed layer order")
+	}
+	a.mouseDown(middle.world(0, -middle.H/2-handleGap))
+	a.stopDrag()
+	if a.selected != 0 || a.images[0] != middle || a.images[2] != bottom {
+		t.Fatal("rotation-handle interaction changed layer order")
+	}
+	a.mouseDown(vector{900, 900})
+	a.mouseMove(vector{100, 150})
+	a.stopDrag()
+	if a.selected != -1 || a.images[0] != middle || a.images[2] != bottom {
+		t.Fatal("drag starting on empty space changed layer order")
 	}
 	a.editing = false
 	a.mouseDown(vector{300, 150})

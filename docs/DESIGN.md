@@ -28,7 +28,7 @@ During editing:
 - The board becomes interactive and accepts clicks and drags.
 - The board stays below ordinary application windows.
 - Editing may take keyboard focus. There is no requirement to preserve another application's focus.
-- Click an image to select it, bring it in front of the other images, and show its handles. Click empty space to deselect.
+- Left-click an image to select it, bring it in front of the other images, and show its handles. Click empty space to deselect. Right-click selection and handle interactions keep the layer order. Bringing an image forward applies only to left-click single-image selection; rectangle selection must preserve layer order.
 - Move images by dragging.
 - Resize images with their aspect ratio locked.
 - Rotate images using handles, with snapping at 0°, 90°, 180°, and 270°.

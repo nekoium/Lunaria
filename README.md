@@ -9,7 +9,7 @@ Download **Lunaria.exe** from [GitHub Releases](https://github.com/nekoium/Lunar
 - Press **Ctrl+Alt+L**, or click the notification-area icon, to toggle edit mode.
 - Right-click the icon and choose **Add Image…** to select an image. PNG, JPEG, GIF, WebP, AVIF, HEIC, HEIF, BMP, and TIFF are supported; animated or multipage images display their first frame or page. Lunaria detects the format from the file contents, including AVIF images downloaded with a `.jpg` name.
 - In edit mode, you can also drop image files onto the board or press **Ctrl+V** to paste copied image files, screenshots, or clipboard images.
-- Click an image to select it and bring it to the front. Drag its body to move it, a corner to resize it, or the handle extending from its top edge to rotate it. Rotation snaps near quarter turns.
+- Left-click an image to select it and bring it to the front. Drag its body to move it, a corner to resize it, or the handle extending from its top edge to rotate it. Rotation snaps near quarter turns.
 - Press **Delete** to remove the selected image.
 - In edit mode, right-click an image and choose **Download** to save its original file in your Downloads folder. Existing files are never replaced.
 - Press **Escape**, **Ctrl+Tab**, or **Ctrl+Alt+L** to finish editing. Activating a maximized application also ends editing. Switching to non-maximized Explorer or another non-maximized application keeps editing open.
