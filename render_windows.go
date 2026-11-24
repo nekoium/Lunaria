@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 	"unsafe"
@@ -20,6 +21,7 @@ import (
 	_ "github.com/gen2brain/avif"
 	"github.com/gen2brain/h265/heic"
 	_ "golang.org/x/image/bmp"
+	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 )
@@ -94,7 +96,14 @@ func loadImage(path string) (*boardImage, error) {
 		return nil, err
 	}
 	defer file.Close()
-	return readImage(file)
+	item, err := readImage(file)
+	// Return decoder memory to Windows so idle memory matches the kept images.
+	debug.FreeOSMemory()
+	return item, err
+}
+
+func defaultImageBounds() (int, int) {
+	return int(float64(metric(0)) * 0.55), int(float64(metric(1)) * 0.55)
 }
 
 func readImage(file io.ReadSeeker) (*boardImage, error) {
@@ -131,15 +140,21 @@ func readImage(file io.ReadSeeker) (*boardImage, error) {
 	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > 40_000_000 {
 		return nil, fmt.Errorf("image exceeds the prototype's 40 megapixel limit")
 	}
-	pixels := make([]byte, cfg.Width*cfg.Height*4)
-	rgba := &image.RGBA{Pix: pixels, Stride: cfg.Width * 4, Rect: image.Rect(0, 0, cfg.Width, cfg.Height)}
-	draw.Draw(rgba, rgba.Bounds(), decoded, bounds.Min, draw.Src)
+	maxW, maxH := defaultImageBounds()
+	w, h := fitSize(cfg.Width, cfg.Height, maxW, maxH)
+	pixels := make([]byte, w*h*4)
+	rgba := &image.RGBA{Pix: pixels, Stride: w * 4, Rect: image.Rect(0, 0, w, h)}
+	if w == cfg.Width && h == cfg.Height {
+		draw.Draw(rgba, rgba.Bounds(), decoded, bounds.Min, draw.Src)
+	} else {
+		xdraw.BiLinear.Scale(rgba, rgba.Bounds(), decoded, bounds, xdraw.Src, nil)
+	}
 	for i := 0; i < len(pixels); i += 4 {
 		pixels[i], pixels[i+2] = pixels[i+2], pixels[i]
 	}
-	item := &boardImage{Pixels: pixels, W: float64(cfg.Width), H: float64(cfg.Height)}
+	item := &boardImage{Pixels: pixels, W: float64(w), H: float64(h)}
 	// Scan0 retains this buffer; each item's Pixels field keeps it alive until bitmap disposal.
-	status := call("GdipCreateBitmapFromScan0", uintptr(cfg.Width), uintptr(cfg.Height), uintptr(cfg.Width*4), 0xe200b, uintptr(unsafe.Pointer(&pixels[0])), uintptr(unsafe.Pointer(&item.Bitmap)))
+	status := call("GdipCreateBitmapFromScan0", uintptr(w), uintptr(h), uintptr(w*4), 0xe200b, uintptr(unsafe.Pointer(&pixels[0])), uintptr(unsafe.Pointer(&item.Bitmap)))
 	runtime.KeepAlive(pixels)
 	if status != 0 {
 		return nil, fmt.Errorf("create image: %d", status)
