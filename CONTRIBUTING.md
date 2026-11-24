@@ -8,7 +8,9 @@ go vet ./...
 go build -ldflags "-H windowsgui -s -w" -o Lunaria.exe .
 ```
 
-`TestIssue8Measure` checks the performance targets in `docs/PRD-performance.md`. It needs the issue #4 image at `.tmp/issue-8/issue4.avif`. Run it with `$env:LUNARIA_MEASURE='1'; go test -run TestIssue8Measure -v -timeout 20m .`. It measures the test process, which uses more memory than Lunaria.exe.
+`TestIssue8Measure` checks the performance goals in `docs/PRD-performance.md`. Download the issue #4 photo as described in `docs/superpowers/plans/2026-11-23-performance.md`; its GitHub attachment is only a screenshot. With the AVIF at `.tmp/issue-8/issue4.avif`, run `$env:LUNARIA_MEASURE='1'; go test -run '^TestIssue8Measure$' -v -timeout 20m .`. The test measures its own total process working set, not Task Manager's active private working set or the built app. Large AVIF currently exceeds one second, so this optional measurement intentionally reports failure. Keep that gap visible. Run `go test -run '^TestIssue8ImportResponsiveness$' -v -timeout 1m .` with the same environment to check dragging during AVIF loading. Remove `LUNARIA_MEASURE` afterward. See `docs/PERFORMANCE.md` for results and limitations.
+
+Normal imports run one at a time off the UI thread. Queue and completion handling stay on the UI thread; workers never mutate board state. Clipboard tests use a private window station, and queue tests use hidden native windows. For built-app measurements, use temporary `LOCALAPPDATA` and launch any background PowerShell with `Start-Process powershell -WindowStyle Hidden` to avoid opening a console on the user's desktop.
 
 HEIC/HEIF decoding uses `github.com/gen2brain/h265/heic`, with automatic container transforms, a 40-million-pixel coded-frame limit, and at most four decoding workers. It selects the primary image or first sequence frame. RGB output retains the source color space; no additional ICC conversion or HDR tone mapping is applied. Runtime files do not require Windows HEIF/HEVC extensions.
 

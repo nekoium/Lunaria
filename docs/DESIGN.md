@@ -43,7 +43,11 @@ Leaving edit mode returns the board to click-through display and removes the edi
 
 ## Adding images
 
-Add images through drag-and-drop or **Add Image…** in the tray menu. There is no separate import workflow.
+Add images through drag-and-drop, clipboard paste, or **Add Image…** in the tray menu. There is no separate import workflow.
+
+Images load one at a time while the board stays usable. Edit mode shows a short adding hint. If an image takes longer than one second, Lunaria can show a nonblocking slow-import notification once per session. Large AVIF images remain a speed exception. Closing editing while an image loads must keep editing closed when it finishes. Completed images must not interrupt an active drag.
+
+Display copies can be smaller than the originals to keep memory low; enlarging them may soften detail. The original file stays unchanged for Download.
 
 ## Board persistence
 
