@@ -33,6 +33,7 @@ During editing:
 - Resize images with their aspect ratio locked.
 - Rotate images using handles, with snapping at 0°, 90°, 180°, and 270°.
 - Remove selected images with Delete.
+- Right-click an image and choose Download to save its original file in the Downloads folder. Download never replaces an existing file.
 
 Calling edit mode gives the editor keyboard focus so local keyboard commands work. An active file drag must continue uninterrupted; the editor can take focus after the drop.
 
@@ -62,6 +63,6 @@ Adding or deleting an image and completing a move, resize, or rotation automatic
 
 - The requirement that editing never takes focus.
 - Configurable shortcuts and hold-to-edit mode.
-- Image context menus, including copy, save as, and reset aspect ratio.
+- Other image context-menu actions, including copy, save as, and reset aspect ratio.
 - Settings window, launch at login, open data folder, and version display.
 - Text notes, multiple boards, multiple monitors, and cloud sync.

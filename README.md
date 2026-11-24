@@ -11,6 +11,7 @@ Download **Lunaria.exe** from [GitHub Releases](https://github.com/nekoium/Lunar
 - In edit mode, you can also drop image files onto the board or press **Ctrl+V** to paste copied image files, screenshots, or clipboard images.
 - Click an image to select it. Drag its body to move it, a corner to resize it, or the handle extending from its top edge to rotate it. Rotation snaps near quarter turns.
 - Press **Delete** to remove the selected image.
+- In edit mode, right-click an image and choose **Download** to save its original file in your Downloads folder. Existing files are never replaced.
 - Press **Escape**, **Ctrl+Tab**, or **Ctrl+Alt+L** to finish editing. Activating a maximized application also ends editing. Switching to non-maximized Explorer or another non-maximized application keeps editing open.
 - Right-click the notification-area icon and choose **Quit** to close Lunaria.
 

@@ -521,6 +521,11 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 			}
 		}
 		return 0
+	case wmRButtonUp:
+		if hwnd == a.board {
+			a.imageMenu(pointerFrom(lparam))
+		}
+		return 0
 	case wmLButtonDown:
 		if hwnd == a.board {
 			a.mouseDown(pointerFrom(lparam))
