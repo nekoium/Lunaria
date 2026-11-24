@@ -207,8 +207,15 @@ func (a *application) attach() error {
 		return fmt.Errorf("could not attach the board to Explorer's desktop layer")
 	}
 	setWindowPos.Call(a.board, a.desktopAfter, 0, 0, uintptr(a.width), uintptr(a.height), swpNoActivate|swpFrameChanged)
-	if err := a.render(); err != nil {
-		return err
+	if a.desktopAfter == 0 {
+		if err := a.render(); err != nil {
+			return err
+		}
+	} else {
+		// Hidden GDI windows clip drawing; conceal the cached frame until the visible repaint.
+		if ok, _, err := user32.NewProc("SetLayeredWindowAttributes").Call(a.board, 0x030201, 0, 3); ok == 0 {
+			return apiError("hide stale desktop frame", err)
+		}
 	}
 	showWindow.Call(a.board, swShowNoActivate)
 	if a.desktopAfter != 0 {

@@ -228,15 +228,19 @@ func (a *application) render() error {
 	}
 	if !a.floating && !a.editing && !a.editClosing && a.desktopAfter != 0 {
 		// Raised Explorer desktops need GDI-compatible layering below the icon view.
-		ok, _, err := user32.NewProc("SetLayeredWindowAttributes").Call(a.board, 0x030201, 255, 3)
-		if ok == 0 {
-			return apiError("SetLayeredWindowAttributes", err)
-		}
 		target, _, _ := getDC.Call(a.board)
 		defer releaseDC.Call(a.board, target)
-		ok, _, err = gdi32.NewProc("BitBlt").Call(target, 0, 0, uintptr(a.width), uintptr(a.height), mem, 0, 0, 0x00cc0020)
+		ok, _, err := gdi32.NewProc("BitBlt").Call(target, 0, 0, uintptr(a.width), uintptr(a.height), mem, 0, 0, 0x00cc0020)
 		if ok == 0 {
 			return apiError("paint passive board", err)
+		}
+		if ok, _, _ := gdi32.NewProc("GdiFlush").Call(); ok == 0 {
+			return fmt.Errorf("flush passive board drawing")
+		}
+		// Reveal only after the current frame replaces the cached desktop pixels.
+		ok, _, err = user32.NewProc("SetLayeredWindowAttributes").Call(a.board, 0x030201, 255, 3)
+		if ok == 0 {
+			return apiError("SetLayeredWindowAttributes", err)
 		}
 		return nil
 	}
