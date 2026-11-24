@@ -2,7 +2,8 @@
 
 package main
 
-//go:generate go run github.com/akavel/rsrc@v0.10.2 -manifest lunaria.manifest -o lunaria_windows_amd64.syso -arch amd64
+//go:generate go run ./tools/icon
+//go:generate go run github.com/akavel/rsrc@v0.10.2 -manifest lunaria.manifest -ico assets/lunaria.ico -o lunaria_windows_amd64.syso -arch amd64
 
 import (
 	"fmt"
