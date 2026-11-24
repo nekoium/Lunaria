@@ -100,6 +100,8 @@ const (
 // Negative window-long indexes, represented as unsigned API arguments.
 var gwlStyle = ^uintptr(15)
 var gwlExStyle = ^uintptr(19)
+var hwndTopmost = ^uintptr(0)
+var hwndNotTopmost = ^uintptr(1)
 
 type point struct{ X, Y int32 }
 type size struct{ W, H int32 }

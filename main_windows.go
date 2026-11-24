@@ -23,6 +23,8 @@ type application struct {
 	storage                            string
 	selected                           int
 	editing, changing, dialog          bool
+	floating                           bool
+	foregroundBeforeEdit               uintptr
 	editFadeStart                      time.Time
 	editFadeDuration                   time.Duration
 	editFadeFrom                       float64
@@ -116,10 +118,14 @@ func run() error {
 		return apiError("Ctrl+Alt+L is unavailable; close the conflicting application and try again", e)
 	}
 	defer unregisterHotKey.Call(app.host, 1)
+	if r, _, e := registerHotKey.Call(app.host, 2, 0x4000|2|1|4, 'L'); r == 0 {
+		return apiError("Ctrl+Alt+Shift+L is unavailable; close the conflicting application and try again", e)
+	}
+	defer unregisterHotKey.Call(app.host, 2)
 	app.taskbarCreated = uint32(registerMessage("TaskbarCreated"))
 	app.tray = notifyIconData{HWND: app.host, ID: 1, Flags: 1 | 2 | 4, CallbackMessage: wmTray, Icon: icon}
 	app.tray.Size = uint32(unsafe.Sizeof(app.tray))
-	copy(app.tray.Tip[:], syscall.StringToUTF16("Lunaria · Ctrl+Alt+L to edit"))
+	copy(app.tray.Tip[:], syscall.StringToUTF16("Lunaria · Ctrl+Alt+L to edit · Ctrl+Alt+Shift+L to float"))
 	if r, _, e := shellNotifyIcon.Call(0, uintptr(unsafe.Pointer(&app.tray))); r == 0 {
 		return apiError("create tray icon", e)
 	}
@@ -244,8 +250,11 @@ func (a *application) setEdit(edit bool) {
 	if !edit {
 		a.selected = -1
 		if !a.editFadeStart.IsZero() {
-			// Return desktop input immediately while the overlay finishes fading.
-			setWindowLong.Call(a.editor, gwlExStyle, wsExLayered|wsExToolWindow|wsExTransparent|wsExNoActivate)
+			// Return input to the underlying window immediately while the overlay finishes fading.
+			ex, _, _ := getWindowLong.Call(a.editor, gwlExStyle)
+			setWindowLong.Call(a.editor, gwlExStyle, ex|wsExTransparent|wsExNoActivate)
+			dragAcceptFiles.Call(a.editor, 0)
+			a.restoreForeground()
 			a.redraw()
 			return
 		}
@@ -253,49 +262,16 @@ func (a *application) setEdit(edit bool) {
 		return
 	}
 	a.editClosing = false
-	if edit {
-		valid, _, _ := user32.NewProc("IsWindow").Call(a.editor)
-		if valid == 0 {
-			instance, _, _ := kernel32.NewProc("GetModuleHandleW").Call(0)
-			a.editor, _, _ = createWindowEx.Call(wsExLayered|wsExToolWindow, uintptr(unsafe.Pointer(u16("Lunaria.NativeBoard"))), uintptr(unsafe.Pointer(u16("Lunaria — Edit mode"))), wsPopup, 0, 0, uintptr(a.width), uintptr(a.height), 0, 0, instance, 0)
-			if a.editor == 0 {
-				a.editing = false
-				a.board = a.display
-				notifyError("Could not open the editor")
-				return
-			}
-			// Keep Explorer from lowering the taskbar for this screen-sized editor.
-			if ok, _, err := user32.NewProc("SetPropW").Call(a.editor, uintptr(unsafe.Pointer(u16("NonRudeHWND"))), 1); ok == 0 {
-				destroyWindow.Call(a.editor)
-				a.editor = 0
-				a.editing = false
-				notifyError(apiError("keep editor below taskbar", err).Error())
-				showWindow.Call(a.board, swShowNoActivate)
-				return
-			}
-		}
-		a.board = a.editor
-		setWindowLong.Call(a.editor, gwlExStyle, wsExLayered|wsExToolWindow)
-		dragAcceptFiles.Call(a.board, 1)
-		setWindowPos.Call(a.board, 0, 0, 0, uintptr(a.width), uintptr(a.height), swpNoActivate|swpFrameChanged)
-		if err := a.render(); err != nil {
-			a.failRender(err)
-			a.board = a.display
-			return
-		}
-		a.activateEditor()
-		// Keep the outgoing surface visible until its replacement is ready.
-		showWindow.Call(a.display, swHide)
+	if err := a.showBoard(); err != nil {
+		a.failRender(err)
 	}
 }
 
 func (a *application) finishEdit() {
 	a.editClosing = false
-	a.board = a.display
-	if err := a.attach(); err != nil {
-		showWindow.Call(a.board, swHide)
+	if err := a.showBoard(); err != nil {
+		a.failRender(err)
 	}
-	showWindow.Call(a.editor, swHide)
 }
 
 func (a *application) failRender(err error) {
@@ -368,10 +344,16 @@ func (a *application) trayMenu() {
 	}
 	appendMenu.Call(menu, 0, 1, uintptr(unsafe.Pointer(u16("Add Image…"))))
 	appendMenu.Call(menu, 0, 2, uintptr(unsafe.Pointer(u16(label+"\tCtrl+Alt+L"))))
+	placement := "Float above apps"
+	if a.floating {
+		placement = "Return to desktop"
+	}
+	appendMenu.Call(menu, 0, 4, uintptr(unsafe.Pointer(u16(placement+"\tCtrl+Alt+Shift+L"))))
 	appendMenu.Call(menu, 0x800, 0, 0)
 	appendMenu.Call(menu, 0, 3, uintptr(unsafe.Pointer(u16("Quit"))))
 	var p point
 	getCursorPos.Call(uintptr(unsafe.Pointer(&p)))
+	a.rememberForeground()
 	setForegroundWindow.Call(a.host)
 	command, _, _ := trackPopupMenu.Call(menu, 0x100|2, signed(p.X), signed(p.Y), 0, a.host, 0)
 	postMessage.Call(a.host, 0, 0, 0)
@@ -382,6 +364,8 @@ func (a *application) trayMenu() {
 		a.setEdit(!a.editing)
 	case 3:
 		postMessage.Call(a.host, wmClose, 0, 0)
+	case 4:
+		a.setFloating(!a.floating)
 	}
 	if a.editing {
 		a.activateEditor()
@@ -476,7 +460,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 	}
 	switch message {
 	case 0x000f: // WM_PAINT
-		if hwnd == a.display && !a.editing && a.desktopAfter != 0 && !a.changing {
+		if hwnd == a.display && !a.floating && !a.editing && a.desktopAfter != 0 && !a.changing {
 			user32.NewProc("ValidateRect").Call(hwnd, 0)
 			a.redraw()
 			return 0
@@ -484,6 +468,8 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 	case wmHotKey:
 		if wparam == 1 {
 			a.setEdit(!a.editing)
+		} else if wparam == 2 {
+			a.setFloating(!a.floating)
 		}
 		return 0
 	case wmTray:
@@ -494,7 +480,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		}
 		return 0
 	case 0x0046: // WM_WINDOWPOSCHANGING
-		if hwnd == a.editor && (a.editing || a.editClosing) && lparam != 0 {
+		if hwnd == a.editor && !a.floating && (a.editing || a.editClosing) && lparam != 0 {
 			a.keepEditorBelowApps(lparam)
 		}
 	case wmActivate:
@@ -538,7 +524,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		a.stopDrag()
 		return 0
 	case wmDropFiles:
-		if a.editClosing {
+		if a.editClosing || (hwnd == a.editor && !a.editing) {
 			dragFinish.Call(wparam)
 			return 0
 		}
@@ -560,6 +546,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		a.persistBoard()
 		a.redraw()
 		if !a.smoke {
+			a.rememberForeground()
 			setForegroundWindow.Call(a.editor)
 		}
 		return 0
@@ -576,8 +563,8 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		return 0
 	case wmRecover:
 		if !a.editing && !a.editClosing {
-			if err := a.attach(); err != nil {
-				showWindow.Call(a.board, swHide)
+			if err := a.showBoard(); err != nil {
+				a.failRender(err)
 			}
 		}
 		return 0
