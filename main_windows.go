@@ -412,6 +412,16 @@ func (a *application) trayMenu() {
 func pointerFrom(lparam uintptr) vector {
 	return vector{float64(int16(lparam & 0xffff)), float64(int16((lparam >> 16) & 0xffff))}
 }
+func (a *application) selectImage(index int) {
+	item := a.images[index]
+	copy(a.images[index:], a.images[index+1:])
+	a.selected = len(a.images) - 1
+	a.images[a.selected] = item
+	if index != a.selected {
+		a.persistBoard()
+	}
+}
+
 func (a *application) mouseDown(p vector) {
 	if !a.editing {
 		return
@@ -442,6 +452,7 @@ func (a *application) mouseDown(p vector) {
 		}
 	}
 	if a.selected >= 0 {
+		a.selectImage(a.selected)
 		a.original = *a.images[a.selected]
 		a.start = p
 		setCapture.Call(a.board)

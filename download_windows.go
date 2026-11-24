@@ -96,8 +96,8 @@ func (a *application) imageMenu(p vector) {
 		return
 	}
 	a.stopDrag()
-	a.selected = index
-	item := a.images[index]
+	a.selectImage(index)
+	item := a.images[a.selected]
 	a.redraw()
 	a.dialog = true
 	defer func() { a.dialog = false }()
