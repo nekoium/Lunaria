@@ -103,7 +103,8 @@ func loadImage(path string) (*boardImage, error) {
 }
 
 func defaultImageBounds() (int, int) {
-	return int(float64(metric(0)) * 0.55), int(float64(metric(1)) * 0.55)
+	// Keep the MVP's pixel budget on larger or high-DPI desktops too.
+	return int(float64(min(metric(0), 1920)) * 0.55), int(float64(min(metric(1), 1080)) * 0.55)
 }
 
 func readImage(file io.ReadSeeker) (*boardImage, error) {
@@ -218,7 +219,7 @@ func (a *application) render() error {
 		if a.selected >= 0 && a.selected < len(a.images) {
 			drawHandles(graphics, a.images[a.selected])
 		}
-		drawHint(graphics, a.width)
+		drawHint(graphics, a.width, a.imports != nil && a.imports.active != nil)
 	}
 	call("GdipDeleteGraphics", graphics)
 	if a.smoke && a.smokeStage == 2 && a.selected >= 0 {
@@ -250,7 +251,7 @@ func (a *application) render() error {
 	return nil
 }
 
-func drawHint(graphics uintptr, width int) {
+func drawHint(graphics uintptr, width int, loading bool) {
 	var brush uintptr
 	call("GdipCreateSolidFill", 0xf5222635, uintptr(unsafe.Pointer(&brush)))
 	w := math.Min(float64(width)-48*uiScale, 1050*uiScale)
@@ -258,7 +259,11 @@ func drawHint(graphics uintptr, width int) {
 	call("GdipDeleteBrush", brush)
 	call("GdipCreateSolidFill", 0xfff5f6ff, uintptr(unsafe.Pointer(&brush)))
 	area := rectF{float32(40 * uiScale), float32(33 * uiScale), float32(w - 28*uiScale), float32(54 * uiScale)}
-	text := "Lunaria · Edit mode · Ctrl+Alt+L to finish\nDrop or Ctrl+V to paste images · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
+	title := "Lunaria · Edit mode · Ctrl+Alt+L to finish"
+	if loading {
+		title += " · Adding image…"
+	}
+	text := title + "\nDrop or Ctrl+V to paste images · Drag to move · Corners to resize · Top handle to rotate · Select, then Delete to remove"
 	call("GdipDrawString", graphics, uintptr(unsafe.Pointer(u16(text))), ^uintptr(0), font, uintptr(unsafe.Pointer(&area)), 0, brush)
 	call("GdipDeleteBrush", brush)
 }

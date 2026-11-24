@@ -49,13 +49,12 @@ func (a *application) pasteClipboard(position *vector) error {
 	get := user32.NewProc("GetClipboardData")
 	if drop, _, _ := get.Call(cfHDrop); drop != 0 {
 		count, _, _ := dragQueryFile.Call(drop, 0xffffffff, 0, 0)
-		before := len(a.images)
 		for i := uintptr(0); i < count; i++ {
 			var path [32768]uint16
 			dragQueryFile.Call(drop, i, uintptr(unsafe.Pointer(&path[0])), uintptr(len(path)))
 			var target *vector
 			if position != nil {
-				offset := float64(len(a.images)-before) * 24
+				offset := float64(i) * 24
 				target = &vector{position.x + offset, position.y + offset}
 			}
 			a.addFileAt(syscall.UTF16ToString(path[:]), target)
@@ -76,6 +75,11 @@ func (a *application) pasteClipboard(position *vector) error {
 				kernel32.NewProc("RtlMoveMemory").Call(uintptr(unsafe.Pointer(&data[0])), memory, size)
 			}
 			kernel32.NewProc("GlobalUnlock").Call(handle)
+			if a.imports != nil {
+				a.queueImport(imageImport{data: data, position: position})
+				a.redraw()
+				return nil
+			}
 			item, err := a.importReader(bytes.NewReader(data))
 			if err != nil {
 				return err
@@ -115,6 +119,11 @@ func (a *application) pasteClipboard(position *vector) error {
 		pixels[i+3] = 255
 	}
 	im := &image.NRGBA{Pix: pixels, Stride: int(info.Width) * 4, Rect: image.Rect(0, 0, int(info.Width), int(info.Height))}
+	if a.imports != nil {
+		a.queueImport(imageImport{bitmap: im, position: position})
+		a.redraw()
+		return nil
+	}
 	var encoded bytes.Buffer
 	if err := png.Encode(&encoded, im); err != nil {
 		return err
