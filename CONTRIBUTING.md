@@ -37,4 +37,18 @@ Do not accept a parent/style check or `PrintWindow` capture alone as visual proo
 
 Keep visible checks brief and announced. Do not minimize or rearrange the user's applications merely to capture the desktop. Treat interference or occlusion as inconclusive, not a product failure or a pass. The passive color-key path flattens partial alpha against a near-black key and treats exact #010203 as transparent; it needs an alpha-capable composition path for fidelity-sensitive transparent images.
 
+## Release a portable package
+
+Run the normal tests and vet checks above, then package on Windows x64:
+
+```powershell
+.\tools\Package.ps1 -Version 0.1.0
+```
+
+The script builds with `-trimpath` to omit local source paths, then writes a versioned ZIP and SHA-256 file under `.tmp/release-<version>/`. Use a fresh staging folder for each build. The ZIP includes the README, its icon asset, license, and third-party notices.
+
+Before publishing, scan tracked files and Git history for secrets, verify package contents, and update `bucket/lunaria.json` with the version, permanent release URL, and ZIP hash. Record user-facing notes under `docs/releases/`. Commit and push, tag that commit with the version (for example, `0.1.0`), and publish the ZIP and checksum as GitHub release assets. Do not replace published ZIPs; Scoop relies on their hashes. Download the published ZIP to verify its checksum, then check installation through the project-owned Scoop bucket.
+
+Scoop's `checkver` and `autoupdate` fields support maintainer updates; this repository does not update the bucket automatically. Board data remains outside the installation directory and must not be removed during upgrades or uninstalls.
+
 `docs/DESIGN.md` records product decisions only. Keep implementation notes out of it.
