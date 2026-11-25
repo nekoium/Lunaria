@@ -35,6 +35,12 @@ The tray menu has a **Hide Lunaria** toggle, checked while active, with no short
 
 While hidden, Add Image, editing, and placement menu commands are disabled; existing shortcuts and tray left-click leave the board hidden. Pending image imports can finish without revealing it, and Explorer or display recovery respects hiding. The tray icon and Quit remain available. Hiding is session-only; launch starts visible in desktop normal mode.
 
+## Start at login
+
+The tray menu offers **Start at login**, off by default. It registers the current executable for the current user without administrator rights. Login restores the saved board in desktop normal mode without entering editing. The toggle remains available while the board is hidden.
+
+The check mark reflects registration whenever the menu opens. A Windows-disabled registration stays checked and is labeled **Start at login (Disabled in Windows)**; Lunaria never overrides Windows' choice. Selecting a checked item removes registration. Unreadable registration is unavailable rather than unchecked, and read or change failures are reported.
+
 ## Edit mode
 
 A keyboard shortcut toggles edit mode.
@@ -87,5 +93,5 @@ Adding or deleting an image and completing a move, resize, or rotation automatic
 - The requirement that editing never takes focus.
 - Configurable shortcuts and hold-to-edit mode.
 - Other image context-menu actions, including copy, save as, and reset aspect ratio.
-- Settings window, launch at login, open data folder, and version display.
+- Settings window, open data folder, and version display.
 - Text notes, multiple boards, multiple monitors, and cloud sync.

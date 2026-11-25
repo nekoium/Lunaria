@@ -39,6 +39,8 @@ Keep visible checks brief and announced. Do not minimize or rearrange the user's
 
 `visibility_windows_test.go` reuses the floating-mode native fixture to verify the checked **Hide Lunaria** menu item, disabled controls, both placements, immediate edit/drag/fade cleanup, hidden shortcut behavior, display and destroyed-surface recovery, pending imports, and board preservation. These checks do not use the user's saved board or request focus. Manually check the tray item, hide while editing and floating, then uncheck it and confirm the previous placement returns without editing. No hide shortcut is registered, and hiding resets on launch.
 
+Startup registration tests use an isolated per-process registry key, never the user's Run or StartupApproved entries. They check quoted executable paths, registration updates and removal, preservation of other values, Windows-disabled records, and menu labels. For a manual check, enable **Start at login** through the tray, reopen the menu, restart Lunaria, and confirm the check mark persists. Disable it afterward if it was previously off. A real sign-out/sign-in check is needed to establish launch behavior under the user's Windows startup controls.
+
 ## Release a portable package
 
 Run the normal tests and vet checks above, then package on Windows x64:

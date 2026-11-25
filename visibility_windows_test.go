@@ -38,6 +38,10 @@ func checkHiddenBoard(t *testing.T, a *application, im *boardImage) {
 		if state == 0xffffffff || state&3 != 0 {
 			t.Fatal("Quit must remain enabled")
 		}
+		state, _, _ = user32.NewProc("GetMenuState").Call(menu, 6, 0)
+		if state == 0xffffffff || (state&3 != 0) != (a.startupError != nil) {
+			t.Fatal("Start at login must remain available while hidden unless its state is unreadable")
+		}
 	}
 	checkHidden := func(floating bool) {
 		t.Helper()

@@ -36,6 +36,7 @@ type application struct {
 	anchor                             vector
 	tray                               notifyIconData
 	taskbarCreated                     uint32
+	startupError                       error
 	smoke                              bool
 	smokeStage                         int
 	smokeErrors                        []string
@@ -383,6 +384,10 @@ func (a *application) createTrayMenu() uintptr {
 		hideState = 8 // MF_CHECKED
 	}
 	appendMenu.Call(menu, hideState, 5, uintptr(unsafe.Pointer(u16("Hide Lunaria"))))
+	enabled, err := startAtLogin(startupRunKey)
+	a.startupError = err
+	startupFlags, startupLabel := startupMenuItem(enabled, err, enabled && startupDisabledInWindows(startupApprovedKey))
+	appendMenu.Call(menu, startupFlags, 6, uintptr(unsafe.Pointer(u16(startupLabel))))
 	appendMenu.Call(menu, 0x800, 0, 0)
 	appendMenu.Call(menu, 0, 3, uintptr(unsafe.Pointer(u16("Quit"))))
 	return menu
@@ -410,6 +415,13 @@ func (a *application) trayMenu() {
 		a.setFloating(!a.floating)
 	case 5:
 		a.setHidden(!a.hidden)
+	case 6:
+		if err := toggleStartAtLogin(); err != nil {
+			notifyError(fmt.Sprintf("Could not change Start at login.\n\n%v\n\nCheck your Windows startup permissions. Reopen the tray menu to see the current registration.", err))
+		}
+	}
+	if a.startupError != nil {
+		notifyError(fmt.Sprintf("Could not read Start at login. No startup registration was changed.\n\n%v\n\nCheck your Windows startup permissions.", a.startupError))
 	}
 	if a.editing {
 		a.activateEditor()

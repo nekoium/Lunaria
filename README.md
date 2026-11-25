@@ -14,7 +14,7 @@ Press **Ctrl+Alt+L** to arrange your images. Press it again to let clicks pass t
 
 Download [Lunaria 0.1.0](https://github.com/nekoium/Lunaria/releases/tag/0.1.0), extract the ZIP, and run `Lunaria/Lunaria.exe`. Quit any older instance through its notification-area menu before replacing it. The executable is unsigned.
 
-Lunaria stays in the notification area. If Windows hides its icon, look under the overflow arrow. Click the icon to toggle editing, or right-click for image import, board placement, **Hide Lunaria**, and Quit.
+Lunaria stays in the notification area. If Windows hides its icon, look under the overflow arrow. Click the icon to toggle editing, or right-click for image import, board placement, **Hide Lunaria**, **Start at login**, and Quit.
 
 ### Install with Scoop
 
@@ -58,6 +58,14 @@ Right-click the tray icon and check **Hide Lunaria** to hide all images and end 
 
 While hidden, image import, editing, and placement controls are disabled. The existing shortcuts and tray left-click leave the board hidden. The tray icon and Quit remain available. Hiding lasts until you uncheck it or restart Lunaria; there is no hide shortcut.
 
+### Start at login
+
+Automatic startup is **off by default**. Right-click the tray icon and select **Start at login** to enable it. A check mark means the startup entry exists; select it again to remove the entry. Login restores your saved board in desktop normal mode without opening the editor.
+
+If Windows has disabled the entry, the checked item reads **Start at login (Disabled in Windows)**. Re-enable Lunaria in **Task Manager → Startup apps**, or select the tray item to remove the registration. Lunaria respects Windows' disabled state. If the registration cannot be read, the item shows **Start at login (state unavailable)** and Lunaria reports the error after the menu closes. Failed changes are also reported.
+
+This creates only a per-user `Lunaria` value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`; no administrator rights are required. The entry points to the executable's current location. Disable it before moving or removing a portable copy, then run the new copy and enable it again. Removing saved board data does not remove startup registration. Windows startup controls or organizational policy may still prevent launch.
+
 ### Controls
 
 | Action | Control |
@@ -88,7 +96,7 @@ Saves replace the JSON atomically. If a save fails, Lunaria reports the error an
 
 ## Current limits
 
-Lunaria currently supports the primary monitor only. There are no settings, automatic startup, or configurable shortcuts. Both global shortcuts must be available; Lunaria reports registration conflicts. Images larger than 40 megapixels are rejected.
+Lunaria currently supports the primary monitor only. There is no settings window or configurable shortcuts. Both global shortcuts must be available; Lunaria reports registration conflicts. Images larger than 40 megapixels are rejected.
 
 Lunaria keeps smaller display copies in memory, capped to a 1080p screen budget. Enlarging an image can make it softer; **Download** preserves the original. Images load one at a time in the background so you can keep editing. Large AVIF files can still take several seconds, with a loading hint and a notification for slow imports. Temporary memory use can rise during decoding.
 
