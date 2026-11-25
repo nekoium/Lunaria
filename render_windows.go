@@ -164,7 +164,7 @@ func readImage(file io.ReadSeeker) (*boardImage, error) {
 }
 
 func (a *application) render() error {
-	if a.width <= 0 || a.height <= 0 {
+	if a.hidden || a.width <= 0 || a.height <= 0 {
 		return nil
 	}
 	dc, _, _ := getDC.Call(0)

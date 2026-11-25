@@ -26,7 +26,7 @@ func (a *application) restoreForeground() {
 }
 
 func (a *application) setFloating(floating bool) {
-	if a.changing || a.floating == floating {
+	if a.hidden || a.changing || a.floating == floating {
 		return
 	}
 	a.stopDrag()
@@ -44,7 +44,32 @@ func (a *application) setFloating(floating bool) {
 	}
 }
 
+func (a *application) setHidden(hidden bool) {
+	if a.changing || a.hidden == hidden {
+		return
+	}
+	a.stopDrag()
+	a.hidden = hidden
+	if hidden {
+		user32.NewProc("KillTimer").Call(a.host, 3)
+		a.editFadeStart = time.Time{}
+		a.editing, a.editClosing = false, false
+		a.selected = -1
+		a.restoreForeground()
+	}
+	a.changing = true
+	defer func() { a.changing = false }()
+	if err := a.showBoard(); err != nil {
+		a.failRender(err)
+	}
+}
+
 func (a *application) showBoard() error {
+	if a.hidden {
+		showWindow.Call(a.display, swHide)
+		showWindow.Call(a.editor, swHide)
+		return nil
+	}
 	if a.desktopEditCovered(editorForegroundWindow()) {
 		if a.editor == 0 || a.board != a.editor {
 			// There is no visible editor to fade when entry is already covered.

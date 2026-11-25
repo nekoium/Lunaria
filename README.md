@@ -14,7 +14,7 @@ Press **Ctrl+Alt+L** to arrange your images. Press it again to let clicks pass t
 
 Download [Lunaria 0.1.0](https://github.com/nekoium/Lunaria/releases/tag/0.1.0), extract the ZIP, and run `Lunaria/Lunaria.exe`. Quit any older instance through its notification-area menu before replacing it. The executable is unsigned.
 
-Lunaria stays in the notification area. If Windows hides its icon, look under the overflow arrow. Click the icon to toggle editing, or right-click for image import, board placement, and Quit.
+Lunaria stays in the notification area. If Windows hides its icon, look under the overflow arrow. Click the icon to toggle editing, or right-click for image import, board placement, **Hide Lunaria**, and Quit.
 
 ### Install with Scoop
 
@@ -52,12 +52,19 @@ Press **Ctrl+Alt+Shift+L**, or choose **Float above apps** from the tray menu. T
 
 Outside edit mode, clicks pass through images to the desktop or application underneath. In desktop placement, images sit below desktop icons and ordinary application windows. Floating uses Windows' standard always-on-top behavior; exclusive fullscreen apps, secure desktops, and other topmost windows may still cover it.
 
+### Take a break from your board
+
+Right-click the tray icon and check **Hide Lunaria** to hide all images and end editing. Uncheck it to show the board again in its previous desktop or floating placement, outside edit mode. Your images and arrangement stay intact.
+
+While hidden, image import, editing, and placement controls are disabled. The existing shortcuts and tray left-click leave the board hidden. The tray icon and Quit remain available. Hiding lasts until you uncheck it or restart Lunaria; there is no hide shortcut.
+
 ### Controls
 
 | Action | Control |
 | --- | --- |
 | Start or finish editing | **Ctrl+Alt+L**, or click the tray icon |
 | Switch desktop / floating placement | **Ctrl+Alt+Shift+L**, or the tray menu |
+| Hide or show the board | Check or uncheck tray menu **Hide Lunaria** |
 | Add images | Drop files in edit mode, or tray menu **Add Image…** |
 | Paste images | **Ctrl+V** in edit mode |
 | Select and bring an image to the front | Left-click the image |
