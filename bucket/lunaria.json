@@ -1,12 +1,12 @@
 {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Keep your inspiration in sight. A native Windows desktop and floating vision board.",
     "homepage": "https://github.com/nekoium/Lunaria",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/nekoium/Lunaria/releases/download/0.1.0/Lunaria-0.1.0-windows-x64.zip",
-            "hash": "b67ac4de0f2a62f068bb82ac85a1a239adfbfe844609dc7ddab8fce94078ead4"
+            "url": "https://github.com/nekoium/Lunaria/releases/download/0.1.1/Lunaria-0.1.1-windows-x64.zip",
+            "hash": "fed67837bd93ab766de1527bf96f40f2e88d1eb84b56739d0d443483b3ff6b44"
         }
     },
     "extract_dir": "Lunaria",

@@ -12,7 +12,7 @@ Press **Ctrl+Alt+L** to arrange your images. Press it again to let clicks pass t
 
 **Windows x64 · Portable · No additional application runtime required**
 
-Download [Lunaria 0.1.0](https://github.com/nekoium/Lunaria/releases/tag/0.1.0), extract the ZIP, and run `Lunaria/Lunaria.exe`. Quit any older instance through its notification-area menu before replacing it. The executable is unsigned.
+Download [Lunaria 0.1.1](https://github.com/nekoium/Lunaria/releases/tag/0.1.1), extract the ZIP, and run `Lunaria/Lunaria.exe`. Quit any older instance through its notification-area menu before replacing it. The executable is unsigned.
 
 Lunaria stays in the notification area. If Windows hides its icon, look under the overflow arrow. Click the icon to toggle editing, or right-click for image import, board placement, **Hide Lunaria**, **Start at login**, and Quit.
 
