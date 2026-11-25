@@ -24,7 +24,7 @@ type application struct {
 	imports                            *imageImports
 	selected                           int
 	editing, changing, dialog          bool
-	floating                           bool
+	floating, hidden                   bool
 	foregroundBeforeEdit               uintptr
 	editFadeStart                      time.Time
 	editFadeDuration                   time.Duration
@@ -232,7 +232,7 @@ func (a *application) attach() error {
 }
 
 func (a *application) setEdit(edit bool) {
-	if a.changing || a.editing == edit {
+	if a.hidden || a.changing || a.editing == edit {
 		return
 	}
 	a.stopDrag()
@@ -361,24 +361,38 @@ func (a *application) chooseFile() {
 		}
 	}
 }
-func (a *application) trayMenu() {
-	a.dialog = true
-	defer func() { a.dialog = false }()
+func (a *application) createTrayMenu() uintptr {
 	menu, _, _ := createPopupMenu.Call()
-	defer destroyMenu.Call(menu)
+	var controls uintptr
+	if a.hidden {
+		controls = 1 // MF_GRAYED
+	}
 	label := "Edit board"
 	if a.editing {
 		label = "Finish editing"
 	}
-	appendMenu.Call(menu, 0, 1, uintptr(unsafe.Pointer(u16("Add Image…"))))
-	appendMenu.Call(menu, 0, 2, uintptr(unsafe.Pointer(u16(label+"\tCtrl+Alt+L"))))
+	appendMenu.Call(menu, controls, 1, uintptr(unsafe.Pointer(u16("Add Image…"))))
+	appendMenu.Call(menu, controls, 2, uintptr(unsafe.Pointer(u16(label+"\tCtrl+Alt+L"))))
 	placement := "Float above apps"
 	if a.floating {
 		placement = "Return to desktop"
 	}
-	appendMenu.Call(menu, 0, 4, uintptr(unsafe.Pointer(u16(placement+"\tCtrl+Alt+Shift+L"))))
+	appendMenu.Call(menu, controls, 4, uintptr(unsafe.Pointer(u16(placement+"\tCtrl+Alt+Shift+L"))))
+	var hideState uintptr
+	if a.hidden {
+		hideState = 8 // MF_CHECKED
+	}
+	appendMenu.Call(menu, hideState, 5, uintptr(unsafe.Pointer(u16("Hide Lunaria"))))
 	appendMenu.Call(menu, 0x800, 0, 0)
 	appendMenu.Call(menu, 0, 3, uintptr(unsafe.Pointer(u16("Quit"))))
+	return menu
+}
+
+func (a *application) trayMenu() {
+	a.dialog = true
+	defer func() { a.dialog = false }()
+	menu := a.createTrayMenu()
+	defer destroyMenu.Call(menu)
 	var p point
 	getCursorPos.Call(uintptr(unsafe.Pointer(&p)))
 	a.rememberForeground()
@@ -394,6 +408,8 @@ func (a *application) trayMenu() {
 		postMessage.Call(a.host, wmClose, 0, 0)
 	case 4:
 		a.setFloating(!a.floating)
+	case 5:
+		a.setHidden(!a.hidden)
 	}
 	if a.editing {
 		a.activateEditor()
@@ -563,7 +579,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		a.stopDrag()
 		return 0
 	case wmDropFiles:
-		if a.editClosing || (hwnd == a.editor && !a.editing) {
+		if a.hidden || a.editClosing || (hwnd == a.editor && !a.editing) {
 			dragFinish.Call(wparam)
 			return 0
 		}
@@ -636,7 +652,7 @@ func windowProc(hwnd uintptr, message uint32, wparam, lparam uintptr) uintptr {
 		}
 		a.importTick()
 		a.watchEditor()
-		if !a.editing && !a.editClosing && !a.changing {
+		if !a.hidden && !a.editing && !a.editClosing && !a.changing {
 			valid, _, _ := user32.NewProc("IsWindow").Call(a.board)
 			if valid == 0 {
 				postMessage.Call(a.host, wmRecover, 0, 0)

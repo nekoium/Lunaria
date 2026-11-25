@@ -29,6 +29,12 @@ Top placement uses standard Windows always-on-top ordering, including above full
 
 The tray menu also switches placement. Placement is not saved; launch starts in desktop normal mode.
 
+## Temporary hiding
+
+The tray menu has a **Hide Lunaria** toggle, checked while active, with no shortcut. Hiding immediately ends editing and dragging, cancels any overlay fade, and conceals both desktop and floating surfaces. Unchecking restores the previous placement in normal mode. Board contents and saved geometry remain intact.
+
+While hidden, Add Image, editing, and placement menu commands are disabled; existing shortcuts and tray left-click leave the board hidden. Pending image imports can finish without revealing it, and Explorer or display recovery respects hiding. The tray icon and Quit remain available. Hiding is session-only; launch starts visible in desktop normal mode.
+
 ## Edit mode
 
 A keyboard shortcut toggles edit mode.

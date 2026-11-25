@@ -37,6 +37,8 @@ Do not accept a parent/style check or `PrintWindow` capture alone as visual proo
 
 Keep visible checks brief and announced. Do not minimize or rearrange the user's applications merely to capture the desktop. Treat interference or occlusion as inconclusive, not a product failure or a pass. The passive color-key path flattens partial alpha against a near-black key and treats exact #010203 as transparent; it needs an alpha-capable composition path for fidelity-sensitive transparent images.
 
+`visibility_windows_test.go` reuses the floating-mode native fixture to verify the checked **Hide Lunaria** menu item, disabled controls, both placements, immediate edit/drag/fade cleanup, hidden shortcut behavior, display and destroyed-surface recovery, pending imports, and board preservation. These checks do not use the user's saved board or request focus. Manually check the tray item, hide while editing and floating, then uncheck it and confirm the previous placement returns without editing. No hide shortcut is registered, and hiding resets on launch.
+
 ## Release a portable package
 
 Run the normal tests and vet checks above, then package on Windows x64:

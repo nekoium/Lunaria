@@ -228,4 +228,6 @@ func TestFloatingBoardModes(t *testing.T) {
 	if a.editor != 0 || a.editClosing || a.board != a.display {
 		t.Fatal("covered desktop entry created an editor or left a fade active")
 	}
+	editorForegroundWindow = func() uintptr { return 0 }
+	checkHiddenBoard(t, a, im)
 }
