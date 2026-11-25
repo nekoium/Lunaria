@@ -1,4 +1,4 @@
-# <img src="assets/lunaria.png" width="40" height="40" align="absmiddle" alt=""> Lunaria
+# <img src="assets/lunaria.png" width="40" height="40" align="top" alt=""> Lunaria
 
 ### Your loved images, always with you.
 
