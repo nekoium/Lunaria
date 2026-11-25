@@ -1,6 +1,6 @@
 # <img src="assets/lunaria.png" width="40" height="40" align="absmiddle" alt=""> Lunaria
 
-### Keep your inspiration in sight.
+### Your loved images, always with you.
 
 A reference image, a place you want to visit, a little reminder of what you're working toward. Put it on your desktop instead of leaving it in a folder.
 
