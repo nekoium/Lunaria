@@ -49,8 +49,10 @@ Run the normal tests and vet checks above, then package on Windows x64:
 
 The script builds with `-trimpath` to omit local source paths, then writes a versioned ZIP and SHA-256 file under `.tmp/release-<version>/`. Use a fresh staging folder for each build. The ZIP includes the README, its icon asset, license, and third-party notices.
 
-Before publishing, scan tracked files and Git history for secrets, verify package contents, and update `bucket/lunaria.json` with the version, permanent release URL, and ZIP hash. Record user-facing notes under `docs/releases/`. Commit and push, tag that commit with the version (for example, `0.1.0`), and publish the ZIP and checksum as GitHub release assets. Do not replace published ZIPs; Scoop relies on their hashes. Download the published ZIP to verify its checksum, then check installation through the project-owned Scoop bucket.
+Before publishing, scan tracked files and Git history for secrets, verify package contents, and update `bucket/lunaria.json` with the version, permanent release URL, and ZIP hash. Record user-facing notes under `docs/releases/`. Commit and push, tag that commit with the version (for example, `0.1.0`), and publish the ZIP and checksum as GitHub release assets. Do not replace published ZIPs; Scoop relies on their hashes. Download the published ZIP to verify its checksum, then run `gh workflow run sync.yml --repo nekoium/scoop-bucket`. Confirm the shared bucket's **Sync manifests** workflow succeeds and contains the released version before checking installation through `nekoium/lunaria` and announcing Scoop availability.
 
-Scoop's `checkver` and `autoupdate` fields support maintainer updates; this repository does not update the bucket automatically. Board data remains outside the installation directory and must not be removed during upgrades or uninstalls.
+Keep `bucket/lunaria.json` as the source manifest. Existing installations using the original `lunaria` bucket continue to update without migration. The shared [nekoium bucket](https://github.com/nekoium/scoop-bucket) copies this manifest hourly and on manual workflow runs, verifying changed release downloads against their SHA-256 before publishing. Do not edit the shared copy directly.
+
+Scoop's `checkver` and `autoupdate` fields support maintainer updates; this repository does not update the source manifest automatically. Board data remains outside the installation directory and must not be removed during upgrades or uninstalls.
 
 `docs/DESIGN.md` records product decisions only. Keep implementation notes out of it.

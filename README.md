@@ -21,11 +21,11 @@ Lunaria stays in the notification area. If Windows hides its icon, look under th
 With [Scoop](https://scoop.sh) installed:
 
 ```powershell
-scoop bucket add lunaria https://github.com/nekoium/Lunaria
-scoop install lunaria/lunaria
+scoop bucket add nekoium https://github.com/nekoium/scoop-bucket
+scoop install nekoium/lunaria
 ```
 
-This uses the project's own Scoop bucket. It adds a Start menu shortcut and a `lunaria` command. Quit Lunaria before updating with `scoop update lunaria`. Updating or uninstalling leaves your saved board in `%LOCALAPPDATA%\Lunaria`.
+It adds a Start menu shortcut and a `lunaria` command. Quit Lunaria before updating with `scoop update lunaria`. Updating or uninstalling leaves your saved board in `%LOCALAPPDATA%\Lunaria`.
 
 ### Build from source
 
